@@ -1,25 +1,45 @@
 config wifi-device 'radio0a'
 	option type 'mac80211'
 	option hwmode '11a'
-	option path 'pci0000:01/0000:01:00.0'
+	option phy 'phy0'
 	option country 'US'
 	option country_ie '1'
 	option channel '44'
 	option htmode 'VHT80'
-	#option txpower '23'
 	option legacy_rates '0'
 
 config wifi-device 'radio0b'
 	option type 'mac80211'
 	option channel '11'
 	option hwmode '11g'
-	option path 'platform/qca955x_wmac'
+	option phy 'phy1'
 	option htmode 'HT20'
 	#This treats all non-802.11n as noise, probably bad
 	#option greenfield '1'
 	option country 'US'
 	option country_ie '1'
-	#option txpower '25'
+	option legacy_rates '0'
+
+config wifi-device 'radio1a'
+	option type 'mac80211'
+	option hwmode '11a'
+	option phy 'phy0'
+	option country 'US'
+	option country_ie '1'
+	option channel '44'
+	option htmode 'VHT80'
+	option legacy_rates '0'
+
+config wifi-device 'radio1b'
+	option type 'mac80211'
+	option channel '11'
+	option hwmode '11g'
+	option phy 'phy1'
+	option htmode 'HT20'
+	#This treats all non-802.11n as noise, probably bad
+	#option greenfield '1'
+	option country 'US'
+	option country_ie '1'
 	option legacy_rates '0'
 
 config wifi-iface
@@ -128,8 +148,10 @@ config wifi-iface
 	option maxassoc '50'
 	option network 'Admin42'
 
+#------------------------------------------
+
 config wifi-iface
-	option device 'radio0b'
+	option device 'radio1b'
 	option mode 'ap'
 	option dtim_period '1'
 	option ssid 'RFHS_WPA_11w1_2G'
@@ -141,7 +163,7 @@ config wifi-iface
 	option network 'Admin42'
 
 config wifi-iface
-	option device 'radio0a'
+	option device 'radio1a'
 	option mode 'ap'
 	option dtim_period '1'
 	option ssid 'RFHS_WPA_11w1_5G'
@@ -153,7 +175,7 @@ config wifi-iface
 	option network 'Admin42'
 
 config wifi-iface
-	option device 'radio0b'
+	option device 'radio1b'
 	option mode 'ap'
 	option dtim_period '1'
 	option ssid 'RFHS_WPA_11w2_2G'
@@ -165,7 +187,7 @@ config wifi-iface
 	option network 'Admin42'
 
 config wifi-iface
-	option device 'radio0a'
+	option device 'radio1a'
 	option mode 'ap'
 	option dtim_period '1'
 	option ssid 'RFHS_WPA_11w2_5G'
@@ -177,7 +199,7 @@ config wifi-iface
 	option network 'Admin42'
 
 config wifi-iface
-	option device 'radio0b'
+	option device 'radio1b'
 	option mode 'ap'
 	option dtim_period '1'
 	option ssid 'RFHS_WPA_11r_2G'
@@ -192,7 +214,7 @@ config wifi-iface
 	option network 'Admin42'
 
 config wifi-iface
-	option device 'radio0a'
+	option device 'radio1a'
 	option mode 'ap'
 	option dtim_period '1'
 	option ssid 'RFHS_WPA_11r_5G'
@@ -207,7 +229,7 @@ config wifi-iface
 	option network 'Admin42'
 
 config wifi-iface
-	option device 'radio0b'
+	option device 'radio1b'
 	option mode 'ap'
 	option dtim_period '1'
 	option ssid 'RFHS_WPA_11rw_2G'
@@ -223,7 +245,7 @@ config wifi-iface
 	option network 'Admin42'
 
 config wifi-iface
-	option device 'radio0a'
+	option device 'radio1a'
 	option mode 'ap'
 	option dtim_period '1'
 	option ssid 'RFHS_WPA_11rw_5G'
