@@ -144,7 +144,7 @@ CONFIG_TARGET_ROOTFS_PARTSIZE=104
 #
 # Global build settings
 #
-# CONFIG_JSON_OVERVIEW_IMAGE_INFO is not set
+CONFIG_JSON_OVERVIEW_IMAGE_INFO=y
 # CONFIG_ALL_NONSHARED is not set
 # CONFIG_ALL_KMODS is not set
 # CONFIG_ALL is not set
@@ -358,9 +358,9 @@ CONFIG_TOOLCHAINOPTS=y
 #
 # Binary tools
 #
-CONFIG_BINUTILS_USE_VERSION_2_32=y
+# CONFIG_BINUTILS_USE_VERSION_2_32 is not set
 # CONFIG_BINUTILS_USE_VERSION_2_34 is not set
-# CONFIG_BINUTILS_USE_VERSION_2_35_1 is not set
+CONFIG_BINUTILS_USE_VERSION_2_35_1=y
 CONFIG_EXTRA_BINUTILS_CONFIG_OPTIONS=""
 
 #
@@ -391,8 +391,8 @@ CONFIG_MUSL_DISABLE_CRYPT_SIZE_HACK=y
 # CONFIG_GDB is not set
 CONFIG_USE_MUSL=y
 CONFIG_SSP_SUPPORT=y
-CONFIG_BINUTILS_VERSION_2_32=y
-CONFIG_BINUTILS_VERSION="2.32"
+CONFIG_BINUTILS_VERSION_2_35_1=y
+CONFIG_BINUTILS_VERSION="2.35.1"
 CONFIG_GCC_VERSION_10=y
 CONFIG_GCC_VERSION="10.2.0"
 # CONFIG_GCC_USE_IREMAP is not set
@@ -419,8 +419,8 @@ CONFIG_TARGET_INIT_CMD="/sbin/init"
 CONFIG_TARGET_INIT_SUPPRESS_STDERR=y
 CONFIG_VERSIONOPT=y
 CONFIG_VERSION_DIST="RFHS RFCTF"
-CONFIG_VERSION_NUMBER="4.1.0"
-CONFIG_VERSION_CODE="2021.04.12 Public Openwrt Image"
+CONFIG_VERSION_NUMBER="4.1.1"
+CONFIG_VERSION_CODE="2021.06.13 Public Openwrt Image"
 CONFIG_VERSION_REPO="http://downloads.openwrt.org/snapshots/trunk/%S/packages"
 CONFIG_VERSION_HOME_URL=""
 CONFIG_VERSION_MANUFACTURER="TP Link"
@@ -1178,7 +1178,7 @@ CONFIG_BUSYBOX_DEFAULT_TIME=y
 # CONFIG_BUSYBOX_DEFAULT_WATCHDOG is not set
 # CONFIG_BUSYBOX_DEFAULT_FEATURE_IPV6 is not set
 # CONFIG_BUSYBOX_DEFAULT_FEATURE_UNIX_LOCAL is not set
-CONFIG_BUSYBOX_DEFAULT_FEATURE_PREFER_IPV4_ADDRESS=y
+# CONFIG_BUSYBOX_DEFAULT_FEATURE_PREFER_IPV4_ADDRESS is not set
 CONFIG_BUSYBOX_DEFAULT_VERBOSE_RESOLUTION_ERRORS=y
 # CONFIG_BUSYBOX_DEFAULT_FEATURE_TLS_SHA1 is not set
 # CONFIG_BUSYBOX_DEFAULT_ARP is not set
@@ -3489,6 +3489,27 @@ CONFIG_PACKAGE_kmod-wireguard=y
 # CONFIG_PACKAGE_kmod-usb-ohci-pci is not set
 # CONFIG_PACKAGE_kmod-usb-printer is not set
 # CONFIG_PACKAGE_kmod-usb-serial is not set
+# CONFIG_PACKAGE_kmod-usb-serial-ark3116 is not set
+# CONFIG_PACKAGE_kmod-usb-serial-belkin is not set
+# CONFIG_PACKAGE_kmod-usb-serial-ch341 is not set
+# CONFIG_PACKAGE_kmod-usb-serial-cp210x is not set
+# CONFIG_PACKAGE_kmod-usb-serial-cypress-m8 is not set
+# CONFIG_PACKAGE_kmod-usb-serial-edgeport is not set
+# CONFIG_PACKAGE_kmod-usb-serial-ftdi is not set
+# CONFIG_PACKAGE_kmod-usb-serial-garmin is not set
+# CONFIG_PACKAGE_kmod-usb-serial-ipw is not set
+# CONFIG_PACKAGE_kmod-usb-serial-keyspan is not set
+# CONFIG_PACKAGE_kmod-usb-serial-mct is not set
+# CONFIG_PACKAGE_kmod-usb-serial-mos7720 is not set
+# CONFIG_PACKAGE_kmod-usb-serial-mos7840 is not set
+# CONFIG_PACKAGE_kmod-usb-serial-option is not set
+# CONFIG_PACKAGE_kmod-usb-serial-oti6858 is not set
+# CONFIG_PACKAGE_kmod-usb-serial-pl2303 is not set
+# CONFIG_PACKAGE_kmod-usb-serial-qualcomm is not set
+# CONFIG_PACKAGE_kmod-usb-serial-sierrawireless is not set
+# CONFIG_PACKAGE_kmod-usb-serial-simple is not set
+# CONFIG_PACKAGE_kmod-usb-serial-ti-usb is not set
+# CONFIG_PACKAGE_kmod-usb-serial-visor is not set
 # CONFIG_PACKAGE_kmod-usb-storage is not set
 # CONFIG_PACKAGE_kmod-usb-storage-extras is not set
 # CONFIG_PACKAGE_kmod-usb-storage-uas is not set
@@ -3852,6 +3873,7 @@ CONFIG_PACKAGE_php7-cgi=y
 #
 # Python
 #
+# CONFIG_PACKAGE_libpython3 is not set
 # CONFIG_PACKAGE_micropython is not set
 # CONFIG_PACKAGE_micropython-lib is not set
 # CONFIG_PACKAGE_python-pip-conf is not set
@@ -3873,6 +3895,7 @@ CONFIG_PACKAGE_php7-cgi=y
 # CONFIG_PACKAGE_python3-babel is not set
 # CONFIG_PACKAGE_python3-base is not set
 # CONFIG_PACKAGE_python3-bcrypt is not set
+# CONFIG_PACKAGE_python3-bidict is not set
 # CONFIG_PACKAGE_python3-boto3 is not set
 # CONFIG_PACKAGE_python3-botocore is not set
 # CONFIG_PACKAGE_python3-bottle is not set
@@ -3929,19 +3952,24 @@ CONFIG_PACKAGE_php7-cgi=y
 # CONFIG_PACKAGE_python3-dotenv is not set
 # CONFIG_PACKAGE_python3-drf-nested-routers is not set
 # CONFIG_PACKAGE_python3-email is not set
+# CONFIG_PACKAGE_python3-engineio is not set
 # CONFIG_PACKAGE_python3-et_xmlfile is not set
 # CONFIG_PACKAGE_python3-evdev is not set
+# CONFIG_PACKAGE_python3-eventlet is not set
 # CONFIG_PACKAGE_python3-execnet is not set
 # CONFIG_PACKAGE_python3-flask is not set
 # CONFIG_PACKAGE_python3-flask-babel is not set
+# CONFIG_PACKAGE_python3-flask-httpauth is not set
 # CONFIG_PACKAGE_python3-flask-login is not set
 # CONFIG_PACKAGE_python3-flask-seasurf is not set
 # CONFIG_PACKAGE_python3-flask-session is not set
+# CONFIG_PACKAGE_python3-flask-socketio is not set
 # CONFIG_PACKAGE_python3-flup is not set
 # CONFIG_PACKAGE_python3-gdbm is not set
 # CONFIG_PACKAGE_python3-gmpy2 is not set
 # CONFIG_PACKAGE_python3-gnupg is not set
 # CONFIG_PACKAGE_python3-gpiod is not set
+# CONFIG_PACKAGE_python3-greenlet is not set
 # CONFIG_PACKAGE_python3-hyperlink is not set
 # CONFIG_PACKAGE_python3-idna is not set
 # CONFIG_PACKAGE_python3-ifaddr is not set
@@ -3999,6 +4027,7 @@ CONFIG_PACKAGE_php7-cgi=y
 # CONFIG_PACKAGE_python3-pluggy is not set
 # CONFIG_PACKAGE_python3-ply is not set
 # CONFIG_PACKAGE_python3-psutil is not set
+# CONFIG_PACKAGE_python3-psycopg2 is not set
 # CONFIG_PACKAGE_python3-py is not set
 # CONFIG_PACKAGE_python3-pyasn1 is not set
 # CONFIG_PACKAGE_python3-pyasn1-modules is not set
@@ -4014,6 +4043,7 @@ CONFIG_PACKAGE_php7-cgi=y
 # CONFIG_PACKAGE_python3-pyroute2 is not set
 # CONFIG_PACKAGE_python3-pyrsistent is not set
 # CONFIG_PACKAGE_python3-pyserial is not set
+# CONFIG_PACKAGE_python3-pysocks is not set
 # CONFIG_PACKAGE_python3-pytest is not set
 # CONFIG_PACKAGE_python3-pytest-forked is not set
 # CONFIG_PACKAGE_python3-pytest-xdist is not set
@@ -4039,6 +4069,7 @@ CONFIG_PACKAGE_php7-cgi=y
 # CONFIG_PACKAGE_python3-six is not set
 # CONFIG_PACKAGE_python3-slugify is not set
 # CONFIG_PACKAGE_python3-smbus is not set
+# CONFIG_PACKAGE_python3-socketio is not set
 # CONFIG_PACKAGE_python3-speedtest-cli is not set
 # CONFIG_PACKAGE_python3-sqlalchemy is not set
 # CONFIG_PACKAGE_python3-sqlite3 is not set
@@ -4157,6 +4188,7 @@ CONFIG_PACKAGE_libxtables=y
 #
 # CONFIG_PACKAGE_libmraa is not set
 # CONFIG_PACKAGE_libmraa-python3 is not set
+# CONFIG_PACKAGE_libupm is not set
 # CONFIG_PACKAGE_libupm-a110x is not set
 # CONFIG_PACKAGE_libupm-a110x-python3 is not set
 # CONFIG_PACKAGE_libupm-abp is not set
@@ -4773,6 +4805,7 @@ CONFIG_PACKAGE_glib2=y
 # CONFIG_PACKAGE_libarchive-noopenssl is not set
 # CONFIG_PACKAGE_libasm is not set
 # CONFIG_PACKAGE_libassuan is not set
+# CONFIG_PACKAGE_libatasmart is not set
 # CONFIG_PACKAGE_libaudit is not set
 # CONFIG_PACKAGE_libauparse is not set
 # CONFIG_PACKAGE_libavahi-client is not set
@@ -5347,6 +5380,7 @@ CONFIG_PACKAGE_luci-theme-openwrt=y
 # CONFIG_PACKAGE_luci-proto-hnet is not set
 # CONFIG_PACKAGE_luci-proto-ipip is not set
 # CONFIG_PACKAGE_luci-proto-modemmanager is not set
+# CONFIG_PACKAGE_luci-proto-ncm is not set
 # CONFIG_PACKAGE_luci-proto-openconnect is not set
 # CONFIG_PACKAGE_luci-proto-openfortivpn is not set
 CONFIG_PACKAGE_luci-proto-ppp=y
@@ -6240,6 +6274,8 @@ CONFIG_PACKAGE_tc-tiny=y
 # CONFIG_PACKAGE_softethervpn5-server is not set
 # CONFIG_PACKAGE_sstp-client is not set
 # CONFIG_PACKAGE_strongswan is not set
+# CONFIG_PACKAGE_tailscale is not set
+# CONFIG_PACKAGE_tailscaled is not set
 # CONFIG_PACKAGE_tinc is not set
 # CONFIG_PACKAGE_uanytun is not set
 # CONFIG_PACKAGE_uanytun-nettle is not set
@@ -6267,6 +6303,7 @@ CONFIG_PACKAGE_tc-tiny=y
 # CONFIG_PACKAGE_adb-enablemodem is not set
 # CONFIG_PACKAGE_comgt is not set
 # CONFIG_PACKAGE_comgt-directip is not set
+# CONFIG_PACKAGE_comgt-ncm is not set
 # CONFIG_PACKAGE_umbim is not set
 # CONFIG_PACKAGE_uqmi is not set
 # end of WWAN
@@ -6444,6 +6481,9 @@ CONFIG_PACKAGE_hostapd-utils=y
 # CONFIG_PACKAGE_apcupsd is not set
 # CONFIG_PACKAGE_apcupsd-cgi is not set
 # CONFIG_PACKAGE_apinger is not set
+# CONFIG_PACKAGE_atlas-probe is not set
+# CONFIG_PACKAGE_atlas-sw-probe is not set
+# CONFIG_PACKAGE_atlas-sw-probe-rpc is not set
 # CONFIG_PACKAGE_banip is not set
 # CONFIG_PACKAGE_batctl-default is not set
 # CONFIG_PACKAGE_batctl-full is not set
@@ -6554,6 +6594,7 @@ CONFIG_PACKAGE_libipset=y
 # CONFIG_PACKAGE_odhcpd is not set
 # CONFIG_PACKAGE_ola is not set
 # CONFIG_PACKAGE_omcproxy is not set
+# CONFIG_PACKAGE_onionshare-cli is not set
 # CONFIG_PACKAGE_ooniprobe is not set
 # CONFIG_PACKAGE_open-iscsi is not set
 # CONFIG_PACKAGE_oping is not set
@@ -6584,6 +6625,7 @@ CONFIG_PACKAGE_libipset=y
 # CONFIG_PACKAGE_samba4-libs is not set
 # CONFIG_PACKAGE_samba4-server is not set
 # CONFIG_PACKAGE_samba4-utils is not set
+# CONFIG_PACKAGE_samplicator is not set
 # CONFIG_PACKAGE_scapy is not set
 # CONFIG_PACKAGE_sctp-tools is not set
 # CONFIG_PACKAGE_seafile-ccnet is not set
@@ -6690,6 +6732,7 @@ CONFIG_PACKAGE_xinetd=y
 #
 # CONFIG_PACKAGE_bigclown-control-tool is not set
 # CONFIG_PACKAGE_bigclown-firmware-tool is not set
+# CONFIG_PACKAGE_bigclown-gateway is not set
 # CONFIG_PACKAGE_bigclown-mqtt2influxdb is not set
 # end of BigClown
 
@@ -7088,6 +7131,7 @@ CONFIG_PACKAGE_dmesg=y
 # CONFIG_PACKAGE_gpiod-tools is not set
 # CONFIG_PACKAGE_gpsd is not set
 # CONFIG_PACKAGE_gpsd-clients is not set
+# CONFIG_PACKAGE_gpsd-utils is not set
 # CONFIG_PACKAGE_grep is not set
 # CONFIG_PACKAGE_hamlib is not set
 # CONFIG_PACKAGE_haserl is not set

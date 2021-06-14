@@ -3,12 +3,12 @@
 set -e
 
 DISTRO=openwrt
-TARBALL="rfhs-rfctf-4.1.0-2021.04.12-public-openwrt-image-x86-64-generic-rootfs.tar.gz"
+TARBALL="rfhs-rfctf-4.1.1-2021.06.13-public-openwrt-image-x86-64-generic-rootfs.tar.gz"
 cp ~/development/openwrt/bin/targets/x86/64/"${TARBALL}" .
 
 CI_REGISTRY_IMAGE=rfhs
 BUILD_DATE=$(date -u +"%Y.%m.%d")
-BUILD_VERSION=4.1.0
+BUILD_VERSION=4.1.1
 
 IMAGE=$DISTRO
 VERSION=$BUILD_VERSION
@@ -21,4 +21,5 @@ docker build --pull -t "${CI_REGISTRY_IMAGE}/${IMAGE}:${VERSION}" \
 
 docker tag "${CI_REGISTRY_IMAGE}/${IMAGE}:${VERSION}" "${CI_REGISTRY_IMAGE}/${IMAGE}:latest"
 docker push "${CI_REGISTRY_IMAGE}/${IMAGE}:${VERSION}"
+docker push "${CI_REGISTRY_IMAGE}/${IMAGE}:latest"
 rm "${TARBALL}"
