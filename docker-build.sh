@@ -3,12 +3,12 @@
 set -e
 
 DISTRO=openwrt
-TARBALL="rfhs-rfctf-4.1.1-2021.06.13-public-openwrt-image-x86-64-generic-rootfs.tar.gz"
+BUILD_VERSION=4.2.0
+TARBALL="rfhs-rfctf-${BUILD_VERSION}-2021.07.05-public-openwrt-image-x86-64-generic-rootfs.tar.gz"
 cp ~/development/openwrt/bin/targets/x86/64/"${TARBALL}" .
 
 CI_REGISTRY_IMAGE=rfhs
 BUILD_DATE=$(date -u +"%Y.%m.%d")
-BUILD_VERSION=4.1.1
 
 IMAGE=$DISTRO
 VERSION=$BUILD_VERSION
