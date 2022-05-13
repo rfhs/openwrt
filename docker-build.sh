@@ -48,9 +48,9 @@ fi
 CONTAINER_PHYS="phy0 phy1 phy2 phy3"
 # Start the container
 docker run -d --rm --network none --name "${CONTAINER_NAME}" \
-  --cap-add net_raw --cap-add net_admin \
+  --cap-add net_raw --cap-add net_admin --cap-add=SYS_ADMIN \
   "${CI_REGISTRY_IMAGE}/${IMAGE}:${BUILD_VERSION_NUMBER}"
-  #--privileged --userns host \
+  #--security-opt seccomp=unconfined \
 # Give it radios
 clientpid=$(docker inspect --format "{{ .State.Pid }}" "${CONTAINER_NAME}")
 for phy in ${CONTAINER_PHYS}; do
@@ -65,7 +65,7 @@ for phy in ${CONTAINER_PHYS}; do
   sudo iw phy "${phy}" set netns "${clientpid}"
 done
 sleep 90
-if docker exec -it "${CONTAINER_NAME}" /usr/sbin/rfhs_checker; then
+if docker exec "${CONTAINER_NAME}" /usr/sbin/rfhs_checker; then
   docker tag "${CI_REGISTRY_IMAGE}/${IMAGE}:${BUILD_VERSION_NUMBER}" "${CI_REGISTRY_IMAGE}/${IMAGE}:latest"
   docker push "${CI_REGISTRY_IMAGE}/${IMAGE}:${BUILD_VERSION_NUMBER}"
   docker push "${CI_REGISTRY_IMAGE}/${IMAGE}:latest"
