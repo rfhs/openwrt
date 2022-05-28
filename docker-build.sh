@@ -1,12 +1,21 @@
 #!/bin/sh
 
-set -eux
+set -eu
 
 TARBALL_FOLDER="${HOME}/development/openwrt/bin/targets/x86/64/"
 DISTRO=openwrt
 BUILD_VERSION_NUMBER="$(awk -F'"' '/CONFIG_VERSION_NUMBER/ {print $2}' "${TARBALL_FOLDER}/../../../../.config" )"
 BUILD_VERSION_CODE="$(awk -F'"' '/CONFIG_VERSION_CODE=/ {gsub(" ", "-"); print tolower($2)}' "${TARBALL_FOLDER}/../../../../.config" )"
 TARBALL="rfhs-rfctf-${BUILD_VERSION_NUMBER}-${BUILD_VERSION_CODE}-x86-64-generic-rootfs.tar.gz"
+
+#Verify checksum matches before starting
+expected_sha256=$(awk '/tar\.gz/ {print $1}' "${TARBALL_FOLDER}/sha256sums")
+tarball_sha256="$(sha256sum ${TARBALL_FOLDER}${TARBALL} | awk '{print $1}')"
+if [ "${expected_sha256}" != "${tarball_sha256}" ]; then
+  printf "Checksum failed, aborting for safety.\n"
+  exit 1
+fi
+
 cp "${TARBALL_FOLDER}${TARBALL}" .
 
 CI_REGISTRY_IMAGE=rfhs
@@ -48,7 +57,9 @@ fi
 CONTAINER_PHYS="phy0 phy1 phy2 phy3"
 # Start the container
 docker run -d --rm --network none --name "${CONTAINER_NAME}" \
-  --cap-add net_raw --cap-add net_admin --cap-add=SYS_ADMIN \
+  --tmpfs /run:mode=0755,nosuid,nodev,nr_inodes=800k,size=20%,strictatime \
+  --tmpfs /tmp:mode=0755,nosuid,nodev,nr_inodes=800k,size=20% \
+  --cap-add net_raw --cap-add net_admin \
   "${CI_REGISTRY_IMAGE}/${IMAGE}:${BUILD_VERSION_NUMBER}"
   #--security-opt seccomp=unconfined \
 # Give it radios
@@ -64,17 +75,18 @@ for phy in ${CONTAINER_PHYS}; do
   done
   sudo iw phy "${phy}" set netns "${clientpid}"
 done
-sleep 90
-if docker exec "${CONTAINER_NAME}" /usr/sbin/rfhs_checker; then
+sleep 10
+if docker exec "${CONTAINER_NAME}" /usr/sbin/rfhs_checker 20; then
+  docker stop "${CONTAINER_NAME}"
+  sudo modprobe -r mac80211_hwsim
   docker tag "${CI_REGISTRY_IMAGE}/${IMAGE}:${BUILD_VERSION_NUMBER}" "${CI_REGISTRY_IMAGE}/${IMAGE}:latest"
   docker push "${CI_REGISTRY_IMAGE}/${IMAGE}:${BUILD_VERSION_NUMBER}"
   docker push "${CI_REGISTRY_IMAGE}/${IMAGE}:latest"
   exit_code=0
 else
   printf "rfhs_checker failed!\n"
+  printf "%s/%s:%s is still running for your debugging pleasure\n" "${CI_REGISTRY_IMAGE}" "${IMAGE}" "${BUILD_VERSION_NUMBER}"
   exit_code=1
 fi
-docker stop "${CONTAINER_NAME}"
-sudo modprobe -r mac80211_hwsim
 rm "${TARBALL}"
 exit "${exit_code}"

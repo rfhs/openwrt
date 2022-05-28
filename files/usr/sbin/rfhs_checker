@@ -1,73 +1,138 @@
 #!/bin/ash
 # RFHS checker script for realtime troubleshooting, status checking, and CI/CD
 # check for ssid's working
-check="pass"
-config="$(mktemp)"
-running="$(mktemp)"
 
-# Write status files which may or may not be used by code you will never see...
-if [ -d '/run/rfctf_status' ]; then
-  for ssid in $(iwinfo | grep 'ESSID:' | awk '{gsub(/"/, "");print $3}' | sort -u | grep -v unknown); do
-    touch "/run/rfctf_status/${ssid}_ap_running"
+set -u
+fail_count=0
+
+wait_for_it() {
+  iter=0
+  while pgrep -f mac80211.sh > /dev/null; do
+    if [ "${iter}" -ge "60" ]; then
+      printf "Timeout waiting for mac80211.sh to do it's job.\n"
+      exit 1
+    fi
+    printf "mac802.11.sh is configuring interfaces...\n"
+    sleep 1
+    iter=$((iter + 1))
   done
-fi
+  while pgrep -f 'ubus call hostapd' > /dev/null; do
+    if [ "${iter}" -ge "60" ]; then
+      printf "Timeout waiting for 'ubus call hostapd to do it's job.\n"
+      exit 1
+    fi
+    printf "ubus is still configuring hostapd...\n"
+    sleep 1
+    iter=$((iter + 1))
+  done
+  return 0
+}
 
-# get info for config check
-grep ' ssid ' /etc/config/wireless | grep -v '^#' | awk '{gsub("\047","");print $3}' | sort > "${config}"
-iwinfo | grep 'ESSID:' | awk '{gsub(/"/, "");print $3}' | sort | grep -v unknown > "${running}"
-# config check
-if ! diff -Naur "${config}" "${running}" > /dev/null 2>&1; then
-  OLDIFS="${IFS}"
-  IFS='
+do_check() {
+  check=0
+  config="$(mktemp)"
+  running="$(mktemp)"
+
+  # Write status files which may or may not be used by code you will never see...
+  if [ -d '/run/rfctf_status' ]; then
+    for ssid in $(iwinfo | grep 'ESSID:' | awk '{gsub(/"/, "");print $3}' | sort -u | grep -v unknown); do
+      touch "/run/rfctf_status/${ssid}_ap_running"
+    done
+  fi
+
+  # get info for config check
+  grep ' ssid ' /etc/config/wireless | grep -v '^#' | awk '{gsub("\047","");print $3}' | sort > "${config}"
+  iwinfo | grep 'ESSID:' | awk '{gsub(/"/, "");print $3}' | sort | grep -v unknown > "${running}"
+  # config check
+  if ! diff -Naur "${config}" "${running}" > /dev/null 2>&1; then
+    OLDIFS="${IFS}"
+    IFS='
 '
-  for line in $(diff -Naur "${config}" "${running}"); do
-    if echo "${line}" | grep -q -- '---'; then
-      continue
-    elif echo "${line}" | grep -q -- '+++'; then
-      continue
-    elif echo "${line}" | grep -q -- '@@'; then
-      continue
-    elif echo "${line}" | grep -q -- 'unknown'; then
-      continue
-    fi
-    if echo "${line}" | grep -q '^+'; then
-      check="fail"
-      printf "%s is running but not configured???\n" "${line/+/}"
-      if [ "${1}" != "--quiet" ]; then
-        iwinfo | grep -A1 -- "${line/+/}"
+    for line in $(diff -Naur "${config}" "${running}"); do
+      if echo "${line}" | grep -q -- '---'; then
+        continue
+      elif echo "${line}" | grep -q -- '+++'; then
+        continue
+      elif echo "${line}" | grep -q -- '@@'; then
+        continue
+      elif echo "${line}" | grep -q -- 'unknown'; then
+        continue
       fi
-    fi
-    if echo "${line}" | grep -q '^-'; then
-      check="fail"
-      printf "%s is configured but not running\n" "${line/-/}"
-      if [ "${1}" != "--quiet" ]; then
-        printf "\nUCI CONFIG:\n"
-        grep -v '^#' /etc/config/wireless | grep -A1 -- " ssid .${line/-/}"
-        printf "\nHOSTAPD Config:\n"
-        awk "/^ssid=${line/-/}/{print FILENAME}" /var/run/*.conf
-        printf "\nRUNNING:\n"
-        iwinfo | grep -A2 -- "${line/-/}"
-        printf "-------------------------------------------\n"
+      if echo "${line}" | grep -q '^+'; then
+        check=1
+        printf "%s is running but not configured???\n" "${line/+/}"
+        if [ "${1}" != "--quiet" ]; then
+          iwinfo | grep -A1 -- "${line/+/}"
+        fi
       fi
+      if echo "${line}" | grep -q '^-'; then
+        check=1
+        printf "%s is configured but not running\n" "${line/-/}"
+        if [ "${1:-}" != "--quiet" ]; then
+          printf "\nUCI CONFIG:\n"
+          grep -v '^#' /etc/config/wireless | grep -A1 -- " ssid .${line/-/}"
+          printf "\nHOSTAPD Config:\n"
+          awk "/^ssid=${line/-/}/{print FILENAME}" /var/run/*.conf
+          printf "\nRUNNING:\n"
+          iwinfo | grep -A2 -- "${line/-/}"
+          printf "-------------------------------------------\n"
+        fi
+      fi
+    done
+    IFS="${OLDIFS}"
+  fi
+  rm -f "${config}" "${running}"
+  for phy in $(grep ' phy ' ../etc/config/wireless | grep -v '^#' | awk '{gsub("\047","");print $3}' | sort); do
+    if ! iw "${phy}" info > /dev/null 2>&1; then
+      check=1
+      printf "%s is configured but missing\n" "${phy}"
     fi
   done
-  IFS="${OLDIFS}"
+  if [ "${check}" = "0" ]; then
+    printf "AP Status: Running config matches written config\n"
+    printf "Wifi is UP\n"
+  else
+    if pgrep -f mac80211.sh > /dev/null 2>&1; then
+      check=1
+      printf "-------------------------------------------\n"
+      printf "OpenWRT is still has mac80211.sh configuration processes running.\n"
+    fi
+  fi
+  return "${check}"
+}
+
+sleepy_tyme=$(( 30 - $(awk -F. '{print $1}' /proc/uptime) ))
+if [ "${sleepy_tyme}" -gt "0" ]; then
+  sleep "${sleepy_tyme}"
 fi
-rm -f "${config}" "${running}"
-for phy in $(grep ' phy ' ../etc/config/wireless | grep -v '^#' | awk '{gsub("\047","");print $3}' | sort); do
-  if ! iw "${phy}" info > /dev/null 2>&1; then
-    check="fail"
-    printf "%s is configured but missing\n" "${phy}"
+
+#prime the pump
+wait_for_it
+if do_check; then
+  printf "Check Pass\n"
+else
+  printf "Check Failed\n"
+  fail_count=$((fail_count + 1))
+fi
+
+test_count="${1:=1}"
+if [ "${test_count}" -le "1" ]; then
+  exit "${fail_count}"
+fi
+
+for i in $(seq 2 ${test_count}); do
+  wifi down
+  wait_for_it
+  sleep 5
+  wifi up
+  wait_for_it
+  sleep 10
+  if do_check; then
+    printf "Check Pass\n"
+  else
+    printf "Check Failed\n"
+    fail_count=$((fail_count + 1))
   fi
 done
-if [ "${check}" = "pass" ]; then
-  printf "AP Status: Running config matches written config\n"
-  printf "Wifi is UP\n"
-  exit 0
-else
-  if pgrep -f mac80211.sh > /dev/null 2>&1; then
-    printf "-------------------------------------------\n"
-    printf "OpenWRT is still has mac80211.sh configuration processes running.\n"
-  fi
-  exit 1
-fi
+printf "%s failures out of %s\n" "${fail_count}" "${test_count}"
+exit "${fail_count}"
