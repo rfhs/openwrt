@@ -419,8 +419,8 @@ CONFIG_TARGET_INIT_CMD="/sbin/init"
 CONFIG_TARGET_INIT_SUPPRESS_STDERR=y
 CONFIG_VERSIONOPT=y
 CONFIG_VERSION_DIST="RFHS RFCTF"
-CONFIG_VERSION_NUMBER="4.3.7"
-CONFIG_VERSION_CODE="2022.05.13 Public Openwrt Image"
+CONFIG_VERSION_NUMBER="4.3.8"
+CONFIG_VERSION_CODE="2022.07.01 Public Openwrt Image"
 CONFIG_VERSION_REPO="http://downloads.openwrt.org/snapshots/trunk/%S/packages"
 CONFIG_VERSION_HOME_URL=""
 CONFIG_VERSION_MANUFACTURER="TP Link"
@@ -2566,10 +2566,7 @@ CONFIG_ZABBIX_POSTGRESQL=y
 #
 # openwisp
 #
-# CONFIG_PACKAGE_openwisp-config-mbedtls is not set
-# CONFIG_PACKAGE_openwisp-config-nossl is not set
-# CONFIG_PACKAGE_openwisp-config-openssl is not set
-# CONFIG_PACKAGE_openwisp-config-wolfssl is not set
+# CONFIG_PACKAGE_openwisp-config is not set
 # end of openwisp
 
 # CONFIG_PACKAGE_atop is not set
