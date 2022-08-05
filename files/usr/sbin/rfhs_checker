@@ -61,28 +61,24 @@ do_check() {
       if echo "${line}" | grep -q '^+'; then
         check=1
         printf "%s is running but not configured???\n" "${line/+/}"
-        if [ "${1}" != "--quiet" ]; then
-          iwinfo | grep -A1 -- "${line/+/}"
-        fi
+        iwinfo | grep -A1 -- "${line/+/}"
       fi
       if echo "${line}" | grep -q '^-'; then
         check=1
         printf "%s is configured but not running\n" "${line/-/}"
-        if [ "${1:-}" != "--quiet" ]; then
-          printf "\nUCI CONFIG:\n"
-          grep -v '^#' /etc/config/wireless | grep -A1 -- " ssid .${line/-/}"
-          printf "\nHOSTAPD Config:\n"
-          awk "/^ssid=${line/-/}/{print FILENAME}" /var/run/*.conf
-          printf "\nRUNNING:\n"
-          iwinfo | grep -A2 -- "${line/-/}"
-          printf "-------------------------------------------\n"
-        fi
+        printf "\nUCI CONFIG:\n"
+        grep -v '^#' /etc/config/wireless | grep -A1 -- " ssid .${line/-/}"
+        printf "\nHOSTAPD Config:\n"
+        awk "/^ssid=${line/-/}/{print FILENAME}" /var/run/*.conf
+        printf "\nRUNNING:\n"
+        iwinfo | grep -A2 -- "${line/-/}"
+        printf "-------------------------------------------\n"
       fi
     done
     IFS="${OLDIFS}"
   fi
   rm -f "${config}" "${running}"
-  for phy in $(grep ' phy ' ../etc/config/wireless | grep -v '^#' | awk '{gsub("\047","");print $3}' | sort); do
+  for phy in $(grep ' phy ' /etc/config/wireless | grep -v '^#' | awk '{gsub("\047","");print $3}' | sort); do
     if ! iw "${phy}" info > /dev/null 2>&1; then
       check=1
       printf "%s is configured but missing\n" "${phy}"
@@ -115,7 +111,7 @@ else
   fail_count=$((fail_count + 1))
 fi
 
-test_count="${1:=1}"
+test_count="${1:-1}"
 if [ "${test_count}" -le "1" ]; then
   exit "${fail_count}"
 fi
