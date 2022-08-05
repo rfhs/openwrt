@@ -107,8 +107,16 @@ wait_for_it
 if do_check; then
   printf "Check Pass\n"
 else
-  printf "Check Failed\n"
-  fail_count=$((fail_count + 1))
+  printf "Check failed, retrying wifi up\n"
+  wifi up
+  wait_for_it
+  sleep 10
+  if do_check; then
+    printf "Check Pass\n"
+  else
+    printf "Check Failed\n"
+    fail_count=$((fail_count + 1))
+  fi
 fi
 
 test_count="${1:-1}"
@@ -126,8 +134,16 @@ for i in $(seq 2 ${test_count}); do
   if do_check; then
     printf "Check Pass\n"
   else
-    printf "Check Failed\n"
-    fail_count=$((fail_count + 1))
+    printf "Check failed, retrying wifi up\n"
+    wifi up
+    wait_for_it
+    sleep 10
+    if do_check; then
+      printf "Check Pass\n"
+    else
+      printf "Check Failed\n"
+      fail_count=$((fail_count + 1))
+    fi
   fi
 done
 printf "%s failures out of %s\n" "${fail_count}" "${test_count}"
