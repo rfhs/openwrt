@@ -96,7 +96,7 @@ do_check() {
   return "${check}"
 }
 
-sleepy_tyme=$(( 30 - $(awk -F. '{print $1}' /proc/uptime) ))
+sleepy_tyme=$(( 60 - $(awk -F. '{print $1}' /proc/uptime) ))
 if [ "${sleepy_tyme}" -gt "0" ]; then
   sleep "${sleepy_tyme}"
 fi
