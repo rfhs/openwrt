@@ -67,8 +67,15 @@ clientpid=$(docker inspect --format "{{ .State.Pid }}" "${CONTAINER_NAME}")
 for phy in ${CONTAINER_PHYS}; do
   while true; do
     if iw phy "${phy}" info > /dev/null 2>&1; then
-      printf "Found %s, moving it into %s\n" "${phy}" "${CONTAINER_NAME}"
-      break
+      unset driver
+      driver="$(awk -F'=' '{print $2}' "/sys/class/ieee80211/${phy}/device/uevent")"
+      if [ 'mac80211_hwsim' = "${driver}" ]; then
+        printf "Found %s, moving it into %s\n" "${phy}" "${CONTAINER_NAME}"
+        break
+      else
+        printf "Requested phy is using %s driver instead of the expected mac80211_hwsim.  Failing safe.\n" "${driver}"
+        exit 1
+      fi
     fi
     printf "Unable to find %s, waiting...\n" "${phy}"
     sleep 1

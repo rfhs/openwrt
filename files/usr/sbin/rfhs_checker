@@ -96,12 +96,21 @@ do_check() {
   return "${check}"
 }
 
-sleepy_tyme=$(( 60 - $(awk -F. '{print $1}' /proc/uptime) ))
+if [ -f '.dockerenv' ]; then
+  boot_timestamp="$(stat -c %Y /.dockerenv)"
+  target_time=$(( 30 + boot_timestamp ))
+  sleepy_tyme=$(( target_time - $(date +%s) ))
+else
+  # not in docker, assume uptime is when we booted
+  sleepy_tyme=$(( 60 - $(awk -F. '{print $1}' /proc/uptime) ))
+fi
 if [ "${sleepy_tyme}" -gt "0" ]; then
   sleep "${sleepy_tyme}"
 fi
 
 fail_count=0
+wait_for_it
+sleep 1
 wait_for_it
 if do_check; then
   printf "Check Pass\n"
