@@ -76,17 +76,17 @@ for phy in ${CONTAINER_PHYS}; do
   sudo iw phy "${phy}" set netns "${clientpid}"
 done
 sleep 10
-#if docker exec "${CONTAINER_NAME}" /usr/sbin/rfhs_checker 20; then
+if docker exec "${CONTAINER_NAME}" /usr/sbin/rfhs_checker; then
   docker stop "${CONTAINER_NAME}"
   sudo modprobe -r mac80211_hwsim
   docker tag "${CI_REGISTRY_IMAGE}/${IMAGE}:${BUILD_VERSION_NUMBER}" "${CI_REGISTRY_IMAGE}/${IMAGE}:latest"
   docker push "${CI_REGISTRY_IMAGE}/${IMAGE}:${BUILD_VERSION_NUMBER}"
   docker push "${CI_REGISTRY_IMAGE}/${IMAGE}:latest"
   exit_code=0
-#else
-#  printf "rfhs_checker failed!\n"
-#  printf "%s/%s:%s is still running for your debugging pleasure\n" "${CI_REGISTRY_IMAGE}" "${IMAGE}" "${BUILD_VERSION_NUMBER}"
-#  exit_code=1
-#fi
+else
+  printf "rfhs_checker failed!\n"
+  printf "%s/%s:%s is still running for your debugging pleasure\n" "${CI_REGISTRY_IMAGE}" "${IMAGE}" "${BUILD_VERSION_NUMBER}"
+  exit_code=1
+fi
 rm "${TARBALL}"
 exit "${exit_code}"
