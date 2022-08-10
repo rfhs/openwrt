@@ -84,7 +84,7 @@ for phy in ${CONTAINER_PHYS}; do
   done
   sudo iw phy "${phy}" set netns "${clientpid}"
 done
-sleep 20
+sleep 10
 if docker exec "${CONTAINER_NAME}" /usr/sbin/rfhs_checker; then
   docker stop "${CONTAINER_NAME}"
   sudo modprobe -r mac80211_hwsim
