@@ -6,6 +6,16 @@ set -u
 
 wait_for_it() {
   iter=0
+  # This is called from rfhs_wifi_fixer so we can't check for that
+  #while pgrep -f rfhs_wifi_fixer > /dev/null; do
+  #  if [ "${iter}" -ge "60" ]; then
+  #    printf "Timeout waiting for rfhs_wifi_fixer to do it's job.\n"
+  #    exit 1
+  #  fi
+  #  printf "rfhs_wifi_fixer is prepping the system...\n"
+  #  sleep 1
+  #  iter=$((iter + 1))
+  #done
   while pgrep -f mac80211.sh > /dev/null; do
     if [ "${iter}" -ge "60" ]; then
       printf "Timeout waiting for mac80211.sh to do it's job.\n"
@@ -55,6 +65,8 @@ do_check() {
       elif echo "${line}" | grep -q -- '@@'; then
         continue
       elif echo "${line}" | grep -q -- 'unknown'; then
+        continue
+      elif printf "%s" "${line}" | grep -q 'OpenWrt'; then
         continue
       fi
       if echo "${line}" | grep -q '^+'; then

@@ -1,0 +1,30 @@
+#!/bin/sh /etc/rc.common
+
+START=18
+
+NAME=rfhs_predictable_phys
+
+boot() {
+  if [ -x '/usr/sbin/rfhs_predictable_phys' ]; then
+    while true; do
+      # set our interface names
+      /usr/sbin/rfhs_predictable_phys || /usr/sbin/rfhs_predictable_phys reset
+      # check that we have all the needed interfaces
+      for phy in $(grep ' phy ' /etc/config/wireless | grep -v '^#' | awk '{gsub("\047","");print $3}' | sort); do
+        allphy='yes'
+        if ! iw "${phy}" info > /dev/null 2>&1; then
+          allphy='no'
+        fi
+      done
+      if [ "${allphy}" = 'yes' ]; then
+        break
+      fi
+      # loop if we didn't find all the needed interfaces
+      sleep 1
+    done
+  fi
+  # this really needs to be reported upstream but it also just has to work NOW
+  sed -i '/he_su_beamformer:${he_phy_cap:6:2}:0x80:$he_su_beamformer/d' /lib/netifd/wireless/mac80211.sh
+  sed -i '/he_mu_beamformer:${he_phy_cap:8:2}:0x2:$he_mu_beamformer/d' /lib/netifd/wireless/mac80211.sh
+  set_state done
+}
