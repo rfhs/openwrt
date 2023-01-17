@@ -2,20 +2,28 @@
 # RFHS checker script for realtime troubleshooting, status checking, and CI/CD
 # check for ssid's working
 
-set -u
+set -eu
+
+fail_count=0
+if [ "${1:-}" = "excessive" ]; then
+  excessive=1
+else
+  excessive=0
+fi
 
 wait_for_it() {
   iter=0
-  # This is called from rfhs_wifi_fixer so we can't check for that
-  #while pgrep -f rfhs_wifi_fixer > /dev/null; do
-  #  if [ "${iter}" -ge "60" ]; then
-  #    printf "Timeout waiting for rfhs_wifi_fixer to do it's job.\n"
-  #    exit 1
-  #  fi
-  #  printf "rfhs_wifi_fixer is prepping the system...\n"
-  #  sleep 1
-  #  iter=$((iter + 1))
-  #done
+  if [ "${excessive}" = "1" ]; then
+    while pgrep -f rfhs_wifi_fixer > /dev/null; do
+      if [ "${iter}" -ge "60" ]; then
+        printf "Timeout waiting for rfhs_wifi_fixer to do it's job.\n"
+        exit 1
+      fi
+      printf "rfhs_wifi_fixer is prepping the system...\n"
+      sleep 1
+      iter=$((iter + 1))
+    done
+  fi
   while pgrep -f mac80211.sh > /dev/null; do
     if [ "${iter}" -ge "60" ]; then
       printf "Timeout waiting for mac80211.sh to do it's job.\n"
@@ -120,7 +128,20 @@ if [ "${sleepy_tyme}" -gt "0" ]; then
   sleep "${sleepy_tyme}"
 fi
 
-fail_count=0
+if [ "${excessive}" = "1" ]; then
+  for required_command in rfhs_predictable_phys grep sort iw sed xargs wc lsmod rmmod; do
+    if [ ! -x "$(command -v ${required_command} 2>&1)" ]; then
+      printf "Missing required command: %s\n" "${required_command}"
+      fail_count=$((fail_count + 1))
+    fi
+  done
+  for rfhs_command in iptables cat ip fakepop; do
+    if [ ! -x "$(command -v ${rfhs_command} 2>&1)" ]; then
+      printf "Missing rfhs command: %s\n" "${rfhs_command}"
+      fail_count=$((fail_count + 1))
+    fi
+  done
+fi
 wait_for_it
 sleep 1
 wait_for_it
@@ -130,4 +151,5 @@ else
   printf "Check Failed\n"
   fail_count=$((fail_count + 1))
 fi
+# Add a check for setageing and maybe some other stuff like checking for uhttpd and dnsmasq running and matching config
 exit "${fail_count}"

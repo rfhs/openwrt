@@ -55,6 +55,24 @@ rfkill_unblock() {
 	return 0
 }
 
+create_ns_link() {
+  PID="$(docker inspect -f '{{.State.Pid}}' "${CONTAINER_NAME}")"
+  if [ -z "${PID}" ]; then
+    printf "Unable to identify process id for %s, skipping.\n" "${CONTAINER_NAME}"
+    exit 1
+  fi
+  sudo mkdir -p /run/netns/
+  if mountpoint -q -- "/run/netns/${CONTAINER_NAME}"; then
+    # Remove the stale namespace mounting
+	  printf "Stale namespace found at /run/netns/%s\n" "${CONTAINER_NAME}"
+    printf "Removing stale namespace\n"
+    sudo ip netns delete "${CONTAINER_NAME}"
+  fi
+  sudo touch "/run/netns/${CONTAINER_NAME}"
+  printf "Mapping namespaces of process id %s for %s to namespace name %s\n" "${PID}" "${CONTAINER_NAME}" "${CONTAINER_NAME}"
+  sudo mount -o bind "/proc/${PID}/ns/net" "/run/netns/${CONTAINER_NAME}"
+}
+
 TARBALL_FOLDER="${HOME}/development/openwrt/bin/targets/x86/64/"
 DISTRO=openwrt
 BUILD_VERSION_NUMBER="$(awk -F'"' '/CONFIG_VERSION_NUMBER/ {print $2}' "${TARBALL_FOLDER}/../../../../.config" )"
@@ -113,11 +131,11 @@ docker run -d --rm --network none --name "${CONTAINER_NAME}" \
   --tmpfs /run:mode=0755,nosuid,nodev,nr_inodes=800k,size=20%,strictatime \
   --tmpfs /tmp:mode=0755,nosuid,nodev,nr_inodes=800k,size=20% \
   --cap-add net_raw --cap-add net_admin \
-  $(if [ -d '/home/zero/development/rfhs/wctf-restricted' ]; then find '/home/zero/development/rfhs/wctf-restricted/wifi/openwrt/airkraken/files' -type f -exec printf "-v %s:%s\n" "{}" "{}" \; | sed 's#:/home/zero/development/rfhs/wctf-restricted/wifi/openwrt/airkraken/files#:#;s#$#:ro#'; fi) \
   "${CI_REGISTRY_IMAGE}/${IMAGE}:${BUILD_VERSION_NUMBER}"
+  #$(if [ -d '/home/zero/development/rfhs/wctf-restricted' ]; then find '/home/zero/development/rfhs/wctf-restricted/wifi/openwrt/airkraken/files' -type f -exec printf "-v %s:%s\n" "{}" "{}" \; | sed 's#:/home/zero/development/rfhs/wctf-restricted/wifi/openwrt/airkraken/files#:#;s#$#:ro#'; fi) \
   #--security-opt seccomp=unconfined \
 # Give it radios
-clientpid=$(docker inspect --format "{{ .State.Pid }}" "${CONTAINER_NAME}")
+create_ns_link
 for phy in ${CONTAINER_PHYS}; do
   while true; do
     if iw phy "${phy}" info > /dev/null 2>&1; then
@@ -136,10 +154,10 @@ for phy in ${CONTAINER_PHYS}; do
   done
   rfkill_check "${phy}" || rfkill_unblock "${phy}"
   sleep 1
-  sudo iw phy "${phy}" set netns "${clientpid}"
+  sudo iw phy "${phy}" set netns name "${CONTAINER_NAME}"
 done
-sleep 10
-if docker exec "${CONTAINER_NAME}" /usr/sbin/rfhs_checker; then
+sleep 15
+if docker exec "${CONTAINER_NAME}" /usr/sbin/rfhs_checker excessive; then
   docker stop "${CONTAINER_NAME}"
   sudo modprobe -r mac80211_hwsim
   docker tag "${CI_REGISTRY_IMAGE}/${IMAGE}:${BUILD_VERSION_NUMBER}" "${CI_REGISTRY_IMAGE}/${IMAGE}:latest"
