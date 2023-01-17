@@ -103,8 +103,8 @@ docker build -t "${CI_REGISTRY_IMAGE}/${IMAGE}:${BUILD_VERSION_NUMBER}" \
 ## You know what all the cool kids like?  CI!  Time to test like a boss
 # This is probably unsafe AND requires root.  I'd rather CI than no CI though, so for now it's happening
 # This is unsafe in the following ways:
-# The hwsim devices have to be 0-3, but if there are other wifi cards they won't be
 # This just modprobes and rips out the module, needed or otherwise, which means it's not parallel safe at all
+# This stops all docker containers, even unrelated ones
 
 # Start by removing hwsim and then making 4 hwsim devices
 CONTAINER_NAME="${CI_REGISTRY_IMAGE}-${IMAGE}-ci"
@@ -124,7 +124,6 @@ if [ -n "$(docker ps -a -q)" ]; then
 fi
 
 # Get a list of the radios (a little safer than assuming)
-#CONTAINER_PHYS="phy8 phy1 phy2 phy3 phy4 phy5 phy6 phy7"
 CONTAINER_PHYS="$(sudo airmon-ng | awk '/mac80211_hwsim/ {print $1}')"
 # Start the container
 docker run -d --rm --network none --name "${CONTAINER_NAME}" \

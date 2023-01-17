@@ -6,6 +6,9 @@ listallphys() {
   for i in /sys/class/ieee80211/*; do
     all_phys="${all_phys} $(basename ${i})"
   done
+  if [ "${1}" = "verbose" ]; then
+    printf "%s" "${all_phys}"
+  fi
 }
 
 getphybands() {
@@ -144,6 +147,8 @@ if [ ! -f "/.dockerenv" ]; then
   lsmod | grep -q mac80211_hwsim && rmmod mac80211_hwsim
 fi
 
+printf "Preexisting phys: $(listallphys)\n"
+
 if [ "${1-}" = "reset" ]; then
   reset_names
 fi
@@ -153,3 +158,5 @@ fivephy="0"
 sixphy="0"
 assign_singles
 assign_remaining
+
+printf "Predictably named phys: $(listallphys)\n"

@@ -7,7 +7,7 @@ NAME=rfhs_wifi_fixer
 boot() {
   # This is dumb but wpad is started at 19 and network is started at 20
   # Wifi can't actually come up without network, which very well may be my whole problem.
-  if [ -x '/usr/sbin/rfhs_predictable_phys' ]; then
+  if [ -x '/usr/sbin/rfhs_checker' ]; then
     until /usr/sbin/rfhs_checker; do
       # This will loop FOREVER until all the APs are up
       # Meaning that core networking never comes up if it fails

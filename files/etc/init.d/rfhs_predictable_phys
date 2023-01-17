@@ -6,12 +6,13 @@ NAME=rfhs_predictable_phys
 
 boot() {
   if [ -x '/usr/sbin/rfhs_predictable_phys' ]; then
+    # set our interface names
+    /usr/sbin/rfhs_predictable_phys
     while true; do
-      # set our interface names
-      /usr/sbin/rfhs_predictable_phys || /usr/sbin/rfhs_predictable_phys reset
+      sleep 1
       # check that we have all the needed interfaces
+      allphy='yes'
       for phy in $(grep ' phy ' /etc/config/wireless | grep -v '^#' | awk '{gsub("\047","");print $3}' | sort); do
-        allphy='yes'
         if ! iw "${phy}" info > /dev/null 2>&1; then
           allphy='no'
         fi
@@ -20,7 +21,7 @@ boot() {
         break
       fi
       # loop if we didn't find all the needed interfaces
-      sleep 1
+      /usr/sbin/rfhs_predictable_phys reset
     done
   fi
   # this really needs to be reported upstream but it also just has to work NOW
