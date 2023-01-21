@@ -125,6 +125,11 @@ else
   sleepy_tyme=$(( 60 - $(awk -F. '{print $1}' /proc/uptime) ))
 fi
 if [ "${sleepy_tyme}" -gt "0" ]; then
+  if [ "${sleepy_tyme}" -gt "60" ]; then
+    #if the time skews during/after boot this number can end up huge
+    #limit it to the a sane maximum
+    sleepy_tyme=60
+  fi
   sleep "${sleepy_tyme}"
 fi
 
