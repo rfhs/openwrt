@@ -152,7 +152,6 @@ for phy in ${CONTAINER_PHYS}; do
     sleep 1
   done
   rfkill_check "${phy}" || rfkill_unblock "${phy}"
-  sleep 1
   sudo iw phy "${phy}" set netns name "${CONTAINER_NAME}"
 done
 sleep 15
