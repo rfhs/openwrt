@@ -4,9 +4,9 @@ set -e
 listallphys() {
   unset all_phys
   for i in /sys/class/ieee80211/*; do
-    all_phys="${all_phys} $(basename ${i})"
+    all_phys="${all_phys} $(basename "${i}")"
   done
-  if [ "${1}" = "verbose" ]; then
+  if [ "${verbose}" = "true" ]; then
     printf "%s" "${all_phys}"
   fi
 }
@@ -14,7 +14,7 @@ listallphys() {
 getphybands() {
   # band 1 2.4 GHz
   # band 2 5.x GHz
-  # band 3 ?
+  # band 3 60 GHz
   # band 4 6.x GHz
   # band 5 900 MHz
   unset bands
@@ -50,6 +50,10 @@ assign_phy() {
       iw phy "${phy}" set name "zphy${sixphy}e"
       sixphy="$((sixphy + 1))"
       ;;
+    sixty)
+      iw phy "${phy}" set name "zphy${sixtyphy}ad"
+      sixtyphy="$((sixtyphy + 1))"
+      ;;
     *)
       printf "assign_phy called with invalid %s\n" "${1}"
       exit 1
@@ -74,8 +78,7 @@ assign_singles() {
           assign_phy five
           ;;
         3)
-          printf "Boom goes the dynamite, this script is not expecting band 3 support on %s\n" "${phy}"
-          exit 1
+          assign_phy sixty
           ;;
         4)
           assign_phy six
@@ -147,16 +150,22 @@ if [ ! -f "/.dockerenv" ]; then
   lsmod | grep -q mac80211_hwsim && rmmod mac80211_hwsim
 fi
 
-printf "Preexisting phys: $(listallphys)\n"
+printf "Preexisting phys: %s\n" "$(listallphys)"
 
 if [ "${1-}" = "reset" ]; then
   reset_names
+fi
+if [ "${1}" = "verbose" ]; then
+  verbose="true"
+else
+  verbose="false"
 fi
 
 twofourphy="0"
 fivephy="0"
 sixphy="0"
+sixtyphy="0"
 assign_singles
 assign_remaining
 
-printf "Predictably named phys: $(listallphys)\n"
+printf "Predictably named phys: %s\n" "$(listallphys)"
