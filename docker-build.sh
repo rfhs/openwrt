@@ -104,7 +104,6 @@ docker build -t "${CI_REGISTRY_IMAGE}/${IMAGE}:${BUILD_VERSION_NUMBER}" \
 # This is probably unsafe AND requires root.  I'd rather CI than no CI though, so for now it's happening
 # This is unsafe in the following ways:
 # This just modprobes and rips out the module, needed or otherwise, which means it's not parallel safe at all
-# This stops all docker containers, even unrelated ones
 
 # Start by removing hwsim and then making 4 hwsim devices
 CONTAINER_NAME="${CI_REGISTRY_IMAGE}-${IMAGE}-ci"
@@ -114,13 +113,9 @@ if lsmod | grep -q mac80211_hwsim; then
 fi
 sudo modprobe mac80211_hwsim radios=8
 
-# stop all running docker containers
-if [ -n "$(docker ps -a -q)" ]; then
-  docker stop $(docker ps -a -q)
-fi
-# remove any stopped containers which weren't removed already
-if [ -n "$(docker ps -a -q)" ]; then
-  docker rm $(docker ps -a -q)
+if [ -n "$(docker ps --filter name="${CONTAINER_NAME}" --format '{{ .ID }}' )" ]; then
+  echo "Found existing ${CONTAINER_NAME} container... QUITTING"
+  exit 1
 fi
 
 # Get a list of the radios (a little safer than assuming)

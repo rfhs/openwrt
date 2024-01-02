@@ -18,3 +18,5 @@ LABEL org.opencontainers.image.created=$BUILD_DATE \
 ADD $TARBALL /
 
 CMD ["/sbin/init"]
+
+HEALTHCHECK --interval=60s --start-period=60s --retries=3 CMD /usr/sbin/rfhs_checker

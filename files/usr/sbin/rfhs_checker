@@ -1,10 +1,17 @@
 #!/bin/ash
 # RFHS checker script for realtime troubleshooting, status checking, and CI/CD
-# check for ssid's working
+# check for ssid's and services working
 
 set -eu
 
+status_dir='/root/shared_persistent_storage'
+[ ! -d "${status_dir}" ] && mkdir -p "${status_dir}"
+apstatus="${status_dir}/AP_status"
+printf "# This file is auto generated once per minute (ideally) and NEVER read by anything\n" | tee -a "${apstatus}"
+printf '# Last generation start time %s (compare to "date" command)\n' "$(date)" | tee -a "${apstatus}"
+
 fail_count=0
+service_fail_count=0
 if [ "${1:-}" = "excessive" ]; then
   excessive=1
 else
@@ -16,29 +23,29 @@ wait_for_it() {
   if [ "${excessive}" = "1" ]; then
     while pgrep -f rfhs_wifi_fixer > /dev/null; do
       if [ "${iter}" -ge "60" ]; then
-        printf "Timeout waiting for rfhs_wifi_fixer to do it's job.\n"
+        printf "Timeout waiting for rfhs_wifi_fixer to do it's job.\n" | tee -a "${apstatus}"
         exit 1
       fi
-      printf "rfhs_wifi_fixer is prepping the system...\n"
+      printf "rfhs_wifi_fixer is prepping the system...\n" | tee -a "${apstatus}"
       sleep 1
       iter=$((iter + 1))
     done
   fi
   while pgrep -f mac80211.sh > /dev/null; do
     if [ "${iter}" -ge "60" ]; then
-      printf "Timeout waiting for mac80211.sh to do it's job.\n"
+      printf "Timeout waiting for mac80211.sh to do it's job.\n" | tee -a "${apstatus}"
       exit 1
     fi
-    printf "mac802.11.sh is configuring interfaces...\n"
+    printf "mac802.11.sh is configuring interfaces...\n" | tee -a "${apstatus}"
     sleep 1
     iter=$((iter + 1))
   done
-  while pgrep -f 'ubus call hostapd' > /dev/null; do
+  while pgrep -f 'ubus call hostapd' > /dev/null 2>&1; do
     if [ "${iter}" -ge "60" ]; then
-      printf "Timeout waiting for 'ubus call hostapd to do it's job.\n"
+      printf "Timeout waiting for 'ubus call hostapd to do it's job.\n" | tee -a "${apstatus}"
       exit 1
     fi
-    printf "ubus is still configuring hostapd...\n"
+    printf "ubus is still configuring hostapd...\n" | tee -a "${apstatus}"
     sleep 1
     iter=$((iter + 1))
   done
@@ -79,19 +86,19 @@ do_check() {
       fi
       if echo "${line}" | grep -q '^+'; then
         check=1
-        printf "%s is running but not configured???\n" "${line/+/}"
-        iwinfo | grep -A1 -- "${line/+/}"
+        printf '%s is running but not configured???\n' "${line/+/}" | tee -a "${apstatus}"
+        iwinfo | grep -A1 -- "${line/+/}" | tee -a "${apstatus}"
       fi
       if echo "${line}" | grep -q '^-'; then
         check=1
-        printf "%s is configured but not running\n" "${line/-/}"
-        printf "\nUCI CONFIG:\n"
-        grep -v '^#' /etc/config/wireless | grep -A1 -- " ssid .${line/-/}"
-        printf "\nHOSTAPD Config:\n"
-        awk "/^ssid=${line/-/}/{print FILENAME}" /var/run/*.conf
-        printf "\nRUNNING:\n"
-        iwinfo | grep -A2 -- "${line/-/}"
-        printf "-------------------------------------------\n"
+        printf '%s is configured but not running\n' "${line/-/}" | tee -a "${apstatus}"
+        printf '\nUCI CONFIG:\n' | tee -a "${apstatus}"
+        grep -v '^#' /etc/config/wireless | grep -A1 -- " ssid .${line/-/}" | tee -a "${apstatus}"
+        printf '\nHOSTAPD Config:\n' | tee -a "${apstatus}"
+        awk "/^ssid=${line/-/}/{print FILENAME}" /var/run/*.conf | tee -a "${apstatus}"
+        printf '\nRUNNING:\n' | tee -a "${apstatus}"
+        iwinfo | grep -A2 -- "${line/-/}" | tee -a "${apstatus}"
+        printf "-------------------------------------------\n" | tee -a "${apstatus}"
       fi
     done
     IFS="${OLDIFS}"
@@ -100,17 +107,17 @@ do_check() {
   for phy in $(grep ' phy ' /etc/config/wireless | grep -v '^#' | awk '{gsub("\047","");print $3}' | sort); do
     if ! iw "${phy}" info > /dev/null 2>&1; then
       check=1
-      printf "%s is configured but missing\n" "${phy}"
+      printf '%s is configured but missing\n' "${phy}" | tee -a "${apstatus}"
     fi
   done
   if [ "${check}" = "0" ]; then
-    printf "AP Status: Running config matches written config\n"
-    printf "Wifi is UP\n"
+    printf 'AP Status: Running config matches written config\n' | tee -a "${apstatus}"
+    printf 'Wifi is UP\n' | tee -a "${apstatus}"
   else
     if pgrep -f mac80211.sh > /dev/null 2>&1; then
       check=1
-      printf "-------------------------------------------\n"
-      printf "OpenWRT is still has mac80211.sh configuration processes running.\n"
+      printf '-------------------------------------------\n' | tee -a "${apstatus}"
+      printf "OpenWRT is still has mac80211.sh configuration processes running.\n" | tee -a "${apstatus}"
     fi
   fi
   return "${check}"
@@ -133,19 +140,20 @@ if [ "${sleepy_tyme}" -gt "0" ]; then
     #this will make the loop always think it's in docker but also not sleep every time it runs
     touch .dockerenv
   fi
+  printf 'Sleeping for %ss while system is booting...\n' "${sleepy_tyme}" | tee -a "${apstatus}"
   sleep "${sleepy_tyme}"
 fi
 
 if [ "${excessive}" = "1" ]; then
   for required_command in rfhs_predictable_phys grep sort iw sed xargs wc lsmod rmmod; do
     if [ ! -x "$(command -v ${required_command} 2>&1)" ]; then
-      printf "Missing required command: %s\n" "${required_command}"
+      printf "Missing required command: %s\n" "${required_command}" | tee -a "${apstatus}"
       fail_count=$((fail_count + 1))
     fi
   done
   for rfhs_command in iptables cat ip fakepop; do
     if [ ! -x "$(command -v ${rfhs_command} 2>&1)" ]; then
-      printf "Missing rfhs command: %s\n" "${rfhs_command}"
+      printf "Missing rfhs command: %s\n" "${rfhs_command}" | tee -a "${apstatus}"
       fail_count=$((fail_count + 1))
     fi
   done
@@ -154,10 +162,42 @@ wait_for_it
 sleep 1
 wait_for_it
 if do_check; then
-  printf "Check Pass\n"
+  printf "Check Pass\n" | tee -a "${apstatus}"
 else
-  printf "Check Failed\n"
+  printf "Check Failed\n" | tee -a "${apstatus}"
   fail_count=$((fail_count + 1))
 fi
-# Add a check for setageing and maybe some other stuff like checking for uhttpd and dnsmasq running and matching config
+
+# If we found something wrong
+if [ "${fail_count}" -gt "0" ]; then
+  # and we are doing a normal check
+  if [ "${excessive}" = "0" ]; then
+    # Kick the wifi to see if it recovers.
+    printf "Failures found, restarting wifi to attempt auto recovery...\n" | tee -a "${apstatus}"
+    wifi up
+    printf "Wifi restart triggered, run rfhs_checker again in 60s...\n" | tee -a "${apstatus}"
+  fi
+fi
+
+# Add a check for setageing?
+
+# Checking for ssh, pop3, and dhcp, but NOT dns or https because those bind to ip not all
+for port in 22 110; do
+  if ! netstat -nlt | grep -q "0.0.0.0:${port}"; then
+    printf 'Nothing is listening on tcp port %s\n' "${port}" | tee -a "${apstatus}"
+    service_fail_count=$((service_fail_count + 1))
+  fi
+done
+for port in 67; do
+  if ! netstat -nlu | grep -q "0.0.0.0:${port}"; then
+    printf 'Nothing is listening on udp port %s\n' "${port}" | tee -a "${apstatus}"
+    service_fail_count=$((service_fail_count + 1))
+  fi
+done
+if [ "${service_fail_count}" -gt "0" ]; then
+  netstat -nlup | tee -a "${apstatus}"
+  fail_count=$((service_fail_count + fail_count))
+  printf 'Service check failed.\n' | tee -a "${apstatus}"
+fi
+
 exit "${fail_count}"
