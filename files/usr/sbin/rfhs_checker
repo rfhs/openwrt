@@ -17,6 +17,11 @@ if [ "${1:-}" = "excessive" ]; then
 else
   excessive=0
 fi
+if [ "${1:-}" = "bootwifi" ]; then
+  bootwifi=1
+else
+  bootwifi=0
+fi
 
 wait_for_it() {
   iter=0
@@ -123,6 +128,28 @@ do_check() {
   return "${check}"
 }
 
+check_services() {
+  service_check=0
+  # Checking for ssh, pop3, and dhcp, but NOT dns or https because those bind to ip not all
+  for port in 22 110; do
+    if ! ss -nlt | grep -q "0.0.0.0:${port}"; then
+      printf 'Nothing is listening on tcp port %s\n' "${port}" | tee -a "${apstatus}"
+      service_check=1
+    fi
+  done
+  for port in 67; do
+    if ! ss -nlu | grep -q "0.0.0.0:${port}"; then
+      printf 'Nothing is listening on udp port %s\n' "${port}" | tee -a "${apstatus}"
+      service_check=1
+    fi
+  done
+  if [ "${service_fail_count}" -gt "0" ]; then
+    ss -nlup | tee -a "${apstatus}"
+    service_check=1
+  fi
+  return "${service_check}"
+}
+
 if [ -f '.dockerenv' ]; then
   boot_timestamp="$(stat -c %Y /.dockerenv)"
   target_time=$(( 30 + boot_timestamp ))
@@ -151,7 +178,7 @@ if [ "${excessive}" = "1" ]; then
       fail_count=$((fail_count + 1))
     fi
   done
-  for rfhs_command in iptables cat ip fakepop; do
+  for rfhs_command in iptables cat ip fakepop ss; do
     if [ ! -x "$(command -v ${rfhs_command} 2>&1)" ]; then
       printf "Missing rfhs command: %s\n" "${rfhs_command}" | tee -a "${apstatus}"
       fail_count=$((fail_count + 1))
@@ -181,23 +208,13 @@ fi
 
 # Add a check for setageing?
 
-# Checking for ssh, pop3, and dhcp, but NOT dns or https because those bind to ip not all
-for port in 22 110; do
-  if ! netstat -nlt | grep -q "0.0.0.0:${port}"; then
-    printf 'Nothing is listening on tcp port %s\n' "${port}" | tee -a "${apstatus}"
-    service_fail_count=$((service_fail_count + 1))
+if [ "${bootwifi}" = "0" ]; then
+  if check_services; then
+    printf "Service Check Pass\n" | tee -a "${apstatus}"
+  else
+    printf "Service Check Failed\n" | tee -a "${apstatus}"
+    fail_count=$((fail_count + 1))
   fi
-done
-for port in 67; do
-  if ! netstat -nlu | grep -q "0.0.0.0:${port}"; then
-    printf 'Nothing is listening on udp port %s\n' "${port}" | tee -a "${apstatus}"
-    service_fail_count=$((service_fail_count + 1))
-  fi
-done
-if [ "${service_fail_count}" -gt "0" ]; then
-  netstat -nlup | tee -a "${apstatus}"
-  fail_count=$((service_fail_count + fail_count))
-  printf 'Service check failed.\n' | tee -a "${apstatus}"
 fi
 
 exit "${fail_count}"

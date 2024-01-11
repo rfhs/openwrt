@@ -7,6 +7,11 @@ config wifi-device 'radio0a'
 	option channel '44'
 	option htmode 'VHT80'
 	option legacy_rates '0'
+	# mac80211_hwsim specific
+	option ldpc '0'
+	option rx_stbc '0'
+	option max_amsdu '0'
+	option legacy_rates '0'
 
 config wifi-device 'radio0b'
 	option type 'mac80211'
@@ -18,6 +23,11 @@ config wifi-device 'radio0b'
 	#option greenfield '1'
 	option country 'US'
 	option country_ie '1'
+	option legacy_rates '0'
+	# mac80211_hwsim specific
+	option ldpc '0'
+	option rx_stbc '0'
+	option max_amsdu '0'
 	option legacy_rates '0'
 
 #config wifi-device 'radio1a'

@@ -149,7 +149,8 @@ for phy in ${CONTAINER_PHYS}; do
   rfkill_check "${phy}" || rfkill_unblock "${phy}"
   sudo iw phy "${phy}" set netns name "${CONTAINER_NAME}"
 done
-sleep 15
+printf 'Sleeping for 30 seconds so openwrt can boot\n'
+sleep 30
 if docker exec "${CONTAINER_NAME}" /usr/sbin/rfhs_checker excessive; then
   docker stop "${CONTAINER_NAME}"
   sudo modprobe -r mac80211_hwsim
