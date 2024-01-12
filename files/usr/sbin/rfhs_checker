@@ -7,7 +7,7 @@ set -eu
 status_dir='/root/shared_persistent_storage'
 [ ! -d "${status_dir}" ] && mkdir -p "${status_dir}"
 apstatus="${status_dir}/AP_status"
-printf "# This file is auto generated once per minute (ideally) and NEVER read by anything\n" | tee -a "${apstatus}"
+printf "# This file is auto generated once per minute (ideally) and NEVER read by anything\n" | tee "${apstatus}"
 printf '# Last generation start time %s (compare to "date" command)\n' "$(date)" | tee -a "${apstatus}"
 
 fail_count=0
@@ -210,11 +210,12 @@ fi
 
 if [ "${bootwifi}" = "0" ]; then
   if check_services; then
-    printf "Service Check Pass\n" | tee -a "${apstatus}"
+    printf 'Service Check Pass\n' | tee -a "${apstatus}"
   else
-    printf "Service Check Failed\n" | tee -a "${apstatus}"
+    printf 'Service Check Failed\n' | tee -a "${apstatus}"
     fail_count=$((fail_count + 1))
   fi
 fi
 
+printf 'Checker run completed\n' | tee -a "${apstatus}"
 exit "${fail_count}"

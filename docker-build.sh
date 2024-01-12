@@ -94,11 +94,12 @@ BUILD_DATE=$(date -u +"%Y.%m.%d")
 
 IMAGE=$DISTRO
 
-docker build -t "${CI_REGISTRY_IMAGE}/${IMAGE}:${BUILD_VERSION_NUMBER}" \
-    --build-arg TARBALL="${TARBALL}" \
-    --build-arg BUILD_DATE="${BUILD_DATE}" \
-    --build-arg VERSION="${BUILD_VERSION_NUMBER}" \
-    .
+docker build --no-cache -t \
+  "${CI_REGISTRY_IMAGE}/${IMAGE}:${BUILD_VERSION_NUMBER}" \
+  --build-arg TARBALL="${TARBALL}" \
+  --build-arg BUILD_DATE="${BUILD_DATE}" \
+  --build-arg VERSION="${BUILD_VERSION_NUMBER}" \
+  .
 
 ## You know what all the cool kids like?  CI!  Time to test like a boss
 # This is probably unsafe AND requires root.  I'd rather CI than no CI though, so for now it's happening
