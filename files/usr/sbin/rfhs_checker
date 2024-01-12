@@ -130,8 +130,8 @@ do_check() {
 
 check_services() {
   service_check=0
-  # Checking for ssh, pop3, and dhcp, but NOT dns or https because those bind to ip not all
-  for port in 22 110; do
+  # Checking for pop3, and dhcp, but NOT dns or https because those bind to ip not all
+  for port in 110; do
     if ! ss -nlt | grep -q "0.0.0.0:${port}"; then
       printf 'Nothing is listening on tcp port %s\n' "${port}" | tee -a "${apstatus}"
       service_check=1
