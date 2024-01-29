@@ -19,4 +19,4 @@ ADD $TARBALL /
 
 CMD ["/sbin/init"]
 
-HEALTHCHECK --interval=60s --start-period=60s --retries=3 CMD /usr/sbin/rfhs_checker
+HEALTHCHECK --interval=120s --start-period=120s --retries=3 CMD /usr/sbin/rfhs_checker
