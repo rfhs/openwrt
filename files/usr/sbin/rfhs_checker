@@ -6,7 +6,10 @@ set -eu
 
 status_dir='/root/shared_persistent_storage'
 [ ! -d "${status_dir}" ] && mkdir -p "${status_dir}"
-apstatus="${status_dir}/AP_status"
+# Write to a tmpdir and move it into place after finishing creating the file content
+apstatus="$(mktemp)"
+apstatusfinal="${status_dir}/AP_status"
+
 printf "# This file is auto generated once per minute (ideally) and NEVER read by anything\n" | tee "${apstatus}"
 printf '# Last generation start time %s (compare to "date" command)\n' "$(date)" | tee -a "${apstatus}"
 
@@ -29,6 +32,7 @@ wait_for_it() {
     while pgrep -f rfhs_wifi_fixer > /dev/null; do
       if [ "${iter}" -ge "60" ]; then
         printf "Timeout waiting for rfhs_wifi_fixer to do it's job.\n" | tee -a "${apstatus}"
+        mv "${apstatus}" "${apstatusfinal}"
         exit 1
       fi
       printf "rfhs_wifi_fixer is prepping the system...\n" | tee -a "${apstatus}"
@@ -39,6 +43,7 @@ wait_for_it() {
   while pgrep -f mac80211.sh > /dev/null; do
     if [ "${iter}" -ge "60" ]; then
       printf "Timeout waiting for mac80211.sh to do it's job.\n" | tee -a "${apstatus}"
+      mv "${apstatus}" "${apstatusfinal}"
       exit 1
     fi
     printf "mac802.11.sh is configuring interfaces...\n" | tee -a "${apstatus}"
@@ -48,6 +53,7 @@ wait_for_it() {
   while pgrep -f 'ubus call hostapd' > /dev/null 2>&1; do
     if [ "${iter}" -ge "60" ]; then
       printf "Timeout waiting for 'ubus call hostapd to do it's job.\n" | tee -a "${apstatus}"
+      mv "${apstatus}" "${apstatusfinal}"
       exit 1
     fi
     printf "ubus is still configuring hostapd...\n" | tee -a "${apstatus}"
@@ -218,4 +224,6 @@ if [ "${bootwifi}" = "0" ]; then
 fi
 
 printf 'Checker run completed\n' | tee -a "${apstatus}"
+# Move the file into place right before exiting
+mv "${apstatus}" "${apstatusfinal}"
 exit "${fail_count}"
