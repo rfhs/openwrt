@@ -1,4 +1,5 @@
 #!/bin/ash
+# shellcheck shell=busybox
 # RFHS checker script for realtime troubleshooting, status checking, and CI/CD
 # check for ssid's and services working
 
@@ -10,11 +11,18 @@ status_dir='/root/shared_persistent_storage'
 apstatus="$(mktemp)"
 apstatusfinal="${status_dir}/AP_status"
 
-printf "# This file is auto generated once per minute (ideally) and NEVER read by anything\n" | tee "${apstatus}"
-printf '# Last generation start time %s (compare to "date" command)\n' "$(date)" | tee -a "${apstatus}"
+# printf to the screen and the status file
+say() {
+  # shellcheck disable=SC2059
+  printf "$@"
+  # shellcheck disable=SC2059
+  printf "$@" >> "${apstatus}"
+}
+
+say "# This file is auto generated once per minute (ideally) and NEVER read by anything\n"
+say '# Last generation start time %s (compare to "date" command)\n' "$(date)"
 
 fail_count=0
-service_fail_count=0
 if [ "${1:-}" = "excessive" ]; then
   excessive=1
 else
@@ -26,37 +34,41 @@ else
   bootwifi=0
 fi
 
+# sets waited=1 when it had to wait
 wait_for_it() {
   iter=0
   if [ "${excessive}" = "1" ]; then
     while pgrep -f rfhs_wifi_fixer > /dev/null; do
+      waited=1
       if [ "${iter}" -ge "60" ]; then
-        printf "Timeout waiting for rfhs_wifi_fixer to do it's job.\n" | tee -a "${apstatus}"
+        say "Timeout waiting for rfhs_wifi_fixer to do it's job.\n"
         mv "${apstatus}" "${apstatusfinal}"
         exit 1
       fi
-      printf "rfhs_wifi_fixer is prepping the system...\n" | tee -a "${apstatus}"
+      say "rfhs_wifi_fixer is prepping the system...\n"
       sleep 1
       iter=$((iter + 1))
     done
   fi
   while pgrep -f mac80211.sh > /dev/null; do
+    waited=1
     if [ "${iter}" -ge "60" ]; then
-      printf "Timeout waiting for mac80211.sh to do it's job.\n" | tee -a "${apstatus}"
+      say "Timeout waiting for mac80211.sh to do it's job.\n"
       mv "${apstatus}" "${apstatusfinal}"
       exit 1
     fi
-    printf "mac802.11.sh is configuring interfaces...\n" | tee -a "${apstatus}"
+    say "mac802.11.sh is configuring interfaces...\n"
     sleep 1
     iter=$((iter + 1))
   done
   while pgrep -f 'ubus call hostapd' > /dev/null 2>&1; do
+    waited=1
     if [ "${iter}" -ge "60" ]; then
-      printf "Timeout waiting for 'ubus call hostapd to do it's job.\n" | tee -a "${apstatus}"
+      say "Timeout waiting for 'ubus call hostapd to do it's job.\n"
       mv "${apstatus}" "${apstatusfinal}"
       exit 1
     fi
-    printf "ubus is still configuring hostapd...\n" | tee -a "${apstatus}"
+    say "ubus is still configuring hostapd...\n"
     sleep 1
     iter=$((iter + 1))
   done
@@ -65,70 +77,85 @@ wait_for_it() {
 
 do_check() {
   check=0
-  config="$(mktemp)"
-  running="$(mktemp)"
-
   # Write status files which may or may not be used by code you will never see...
+  status_files=''
   if [ -d '/run/rfctf_status' ]; then
-    for ssid in $(iwinfo | grep 'ESSID:' | awk '{gsub(/"/, "");print $3}' | sort -u | grep -v unknown); do
-      touch "/run/rfctf_status/${ssid}_ap_running"
-    done
+    status_files='/run/rfctf_status'
   fi
 
-  # get info for config check
-  grep ' ssid ' /etc/config/wireless | grep -v '^#' | awk '{gsub("\047","");print $3}' | sort > "${config}"
-  iwinfo | grep 'ESSID:' | awk '{gsub(/"/, "");print $3}' | sort | grep -v unknown > "${running}"
-  # config check
-  if ! diff -Naur "${config}" "${running}" > /dev/null 2>&1; then
-    OLDIFS="${IFS}"
-    IFS='
-'
-    for line in $(diff -Naur "${config}" "${running}"); do
-      if echo "${line}" | grep -q -- '---'; then
-        continue
-      elif echo "${line}" | grep -q -- '+++'; then
-        continue
-      elif echo "${line}" | grep -q -- '@@'; then
-        continue
-      elif echo "${line}" | grep -q -- 'unknown'; then
-        continue
-      elif printf "%s" "${line}" | grep -q 'OpenWrt'; then
-        continue
-      fi
-      if echo "${line}" | grep -q '^+'; then
-        check=1
-        printf '%s is running but not configured???\n' "${line/+/}" | tee -a "${apstatus}"
-        iwinfo | grep -A1 -- "${line/+/}" | tee -a "${apstatus}"
-      fi
-      if echo "${line}" | grep -q '^-'; then
-        check=1
-        printf '%s is configured but not running\n' "${line/-/}" | tee -a "${apstatus}"
-        printf '\nUCI CONFIG:\n' | tee -a "${apstatus}"
-        grep -v '^#' /etc/config/wireless | grep -A1 -- " ssid .${line/-/}" | tee -a "${apstatus}"
-        printf '\nHOSTAPD Config:\n' | tee -a "${apstatus}"
-        awk "/^ssid=${line/-/}/{print FILENAME}" /var/run/*.conf | tee -a "${apstatus}"
-        printf '\nRUNNING:\n' | tee -a "${apstatus}"
-        iwinfo | grep -A2 -- "${line/-/}" | tee -a "${apstatus}"
-        printf "-------------------------------------------\n" | tee -a "${apstatus}"
-      fi
+  # Compares the configured SSIDs with the running ones as multisets, since
+  # several APs can share an SSID, and prints extra:SSID, missing:SSID and
+  # phy:PHY for a configured phy that is missing. iw dev gives the SSID each
+  # interface is beaconing, from the kernel; iwinfo takes far longer to
+  # print everything about every interface. iw finds phys by name the same
+  # way, in /sys/class/ieee80211, which only shows the phys in this network
+  # namespace. Opening a status file for writing updates its mtime, as touch
+  # did.
+  problems="$(iw dev | awk -v status_files="${status_files}" '
+    BEGIN {
+      while ((getline line < "/etc/config/wireless") > 0) {
+        if (line ~ /^#/) continue
+        gsub("\047", "", line)
+        split(line, f)
+        if (line ~ / ssid /) {
+          ssids[f[3]]++
+        } else if (line ~ / phy /) {
+          index_file = "/sys/class/ieee80211/" f[3] "/index"
+          if ((getline x < index_file) < 0) print "phy:" f[3]
+          close(index_file)
+        }
+      }
+    }
+    $1 == "ssid" {
+      ssids[$2]--
+      if (status_files != "" && !($2 in written)) {
+        written[$2] = 1
+        status_file = status_files "/" $2 "_ap_running"
+        printf "" > status_file
+        close(status_file)
+      }
+    }
+    END {
+      for (s in ssids) {
+        if (s ~ /unknown|OpenWrt/) continue
+        for (i = ssids[s]; i > 0; i--) print "missing:" s
+        for (i = ssids[s]; i < 0; i++) print "extra:" s
+      }
+    }')"
+
+  if [ -n "${problems}" ]; then
+    check=1
+    for problem in $(printf '%s\n' "${problems}" | sort); do
+      name="${problem#*:}"
+      case "${problem}" in
+        extra:*)
+          say '%s is running but not configured???\n' "${name}"
+          iwinfo | grep -A1 -- "${name}" | tee -a "${apstatus}"
+          ;;
+        missing:*)
+          say '%s is configured but not running\n' "${name}"
+          say '\nUCI CONFIG:\n'
+          grep -v '^#' /etc/config/wireless | grep -A1 -- " ssid .${name}" | tee -a "${apstatus}"
+          say '\nHOSTAPD Config:\n'
+          awk "/^ssid=${name}/{print FILENAME}" /var/run/*.conf | tee -a "${apstatus}"
+          say '\nRUNNING:\n'
+          iwinfo | grep -A2 -- "${name}" | tee -a "${apstatus}"
+          say "-------------------------------------------\n"
+          ;;
+        phy:*)
+          say '%s is configured but missing\n' "${name}"
+          ;;
+      esac
     done
-    IFS="${OLDIFS}"
   fi
-  rm -f "${config}" "${running}"
-  for phy in $(grep ' phy ' /etc/config/wireless | grep -v '^#' | awk '{gsub("\047","");print $3}' | sort); do
-    if ! iw "${phy}" info > /dev/null 2>&1; then
-      check=1
-      printf '%s is configured but missing\n' "${phy}" | tee -a "${apstatus}"
-    fi
-  done
   if [ "${check}" = "0" ]; then
-    printf 'AP Status: Running config matches written config\n' | tee -a "${apstatus}"
-    printf 'Wifi is UP\n' | tee -a "${apstatus}"
+    say 'AP Status: Running config matches written config\n'
+    say 'Wifi is UP\n'
   else
     if pgrep -f mac80211.sh > /dev/null 2>&1; then
       check=1
-      printf '-------------------------------------------\n' | tee -a "${apstatus}"
-      printf "OpenWRT is still has mac80211.sh configuration processes running.\n" | tee -a "${apstatus}"
+      say '-------------------------------------------\n'
+      say "OpenWRT is still has mac80211.sh configuration processes running.\n"
     fi
   fi
   return "${check}"
@@ -137,21 +164,18 @@ do_check() {
 check_services() {
   service_check=0
   # Checking for pop3, and dhcp, but NOT dns or https because those bind to ip not all
-  for port in 110; do
-    if ! ss -nlt | grep -q "0.0.0.0:${port}"; then
-      printf 'Nothing is listening on tcp port %s\n' "${port}" | tee -a "${apstatus}"
-      service_check=1
-    fi
+  listening=" $(ss -Hnltu | awk '{ printf "%s/%s ", $1, $5 }')"
+  for socket in tcp/0.0.0.0:110 udp/0.0.0.0:67; do
+    case "${listening}" in
+      *" ${socket} "*) ;;
+      *)
+        say 'Nothing is listening on %s port %s\n' "${socket%%/*}" "${socket##*:}"
+        service_check=1
+        ;;
+    esac
   done
-  for port in 67; do
-    if ! ss -nlu | grep -q "0.0.0.0:${port}"; then
-      printf 'Nothing is listening on udp port %s\n' "${port}" | tee -a "${apstatus}"
-      service_check=1
-    fi
-  done
-  if [ "${service_fail_count}" -gt "0" ]; then
-    ss -nlup | tee -a "${apstatus}"
-    service_check=1
+  if [ "${service_check}" != "0" ]; then
+    ss -nltup | tee -a "${apstatus}"
   fi
   return "${service_check}"
 }
@@ -173,31 +197,35 @@ if [ "${sleepy_tyme}" -gt "0" ]; then
     #this will make the loop always think it's in docker but also not sleep every time it runs
     touch .dockerenv
   fi
-  printf 'Sleeping for %ss while system is booting...\n' "${sleepy_tyme}" | tee -a "${apstatus}"
+  say 'Sleeping for %ss while system is booting...\n' "${sleepy_tyme}"
   sleep "${sleepy_tyme}"
 fi
 
 if [ "${excessive}" = "1" ]; then
   for required_command in rfhs_predictable_phys grep sort iw sed xargs wc lsmod rmmod; do
     if [ ! -x "$(command -v ${required_command} 2>&1)" ]; then
-      printf "Missing required command: %s\n" "${required_command}" | tee -a "${apstatus}"
+      say "Missing required command: %s\n" "${required_command}"
       fail_count=$((fail_count + 1))
     fi
   done
   for rfhs_command in iptables cat ip fakepop ss; do
     if [ ! -x "$(command -v ${rfhs_command} 2>&1)" ]; then
-      printf "Missing rfhs command: %s\n" "${rfhs_command}" | tee -a "${apstatus}"
+      say "Missing rfhs command: %s\n" "${rfhs_command}"
       fail_count=$((fail_count + 1))
     fi
   done
 fi
+waited=0
 wait_for_it
-sleep 1
-wait_for_it
+# one configuration step can start right after another finished
+if [ "${waited}" = "1" ]; then
+  sleep 1
+  wait_for_it
+fi
 if do_check; then
-  printf "Check Pass\n" | tee -a "${apstatus}"
+  say "Check Pass\n"
 else
-  printf "Check Failed\n" | tee -a "${apstatus}"
+  say "Check Failed\n"
   fail_count=$((fail_count + 1))
 fi
 
@@ -206,9 +234,9 @@ if [ "${fail_count}" -gt "0" ]; then
   # and we are doing a normal check
   if [ "${excessive}" = "0" ]; then
     # Kick the wifi to see if it recovers.
-    printf "Failures found, restarting wifi to attempt auto recovery...\n" | tee -a "${apstatus}"
+    say "Failures found, restarting wifi to attempt auto recovery...\n"
     wifi up
-    printf "Wifi restart triggered, run rfhs_checker again in 60s...\n" | tee -a "${apstatus}"
+    say "Wifi restart triggered, run rfhs_checker again in 60s...\n"
   fi
 fi
 
@@ -216,14 +244,16 @@ fi
 
 if [ "${bootwifi}" = "0" ]; then
   if check_services; then
-    printf 'Service Check Pass\n' | tee -a "${apstatus}"
+    say 'Service Check Pass\n'
   else
-    printf 'Service Check Failed\n' | tee -a "${apstatus}"
+    say 'Service Check Failed\n'
     fail_count=$((fail_count + 1))
   fi
 fi
 
-printf 'Checker run completed\n' | tee -a "${apstatus}"
+say 'Checker run completed\n'
 # Move the file into place right before exiting
 mv "${apstatus}" "${apstatusfinal}"
-exit "${fail_count}"
+if [ "${fail_count}" -gt "0" ]; then
+  exit 1
+fi

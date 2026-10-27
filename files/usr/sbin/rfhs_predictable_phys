@@ -25,7 +25,7 @@ reset_names() {
   listallphys
   unset phy
   for phy in ${all_phys}; do
-    if [ "${phy}" = "${phy/badphy}" ]; then
+    if [ "${phy}" = "${phy#*badphy}" ]; then
       for num in $(seq 0 100); do
         if [ ! -L "/sys/class/ieee80211/badphy${num}" ]; then
           iw phy "${phy}" set name "badphy${num}"
@@ -65,7 +65,7 @@ assign_singles() {
   listallphys
   unset phy
   for phy in ${all_phys}; do
-    if [ "${phy}" != "${phy/zphy}" ]; then
+    if [ "${phy}" != "${phy#*zphy}" ]; then
       continue
     fi
     getphybands "${phy}"
@@ -96,7 +96,7 @@ assign_remaining() {
   listallphys
   unset phy
   for phy in ${all_phys}; do
-    if [ "${phy}" != "${phy/zphy}" ]; then
+    if [ "${phy}" != "${phy#*zphy}" ]; then
       continue
     fi
     getphybands "${phy}"

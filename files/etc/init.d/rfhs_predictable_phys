@@ -1,7 +1,11 @@
 #!/bin/sh /etc/rc.common
+# shellcheck shell=busybox
 
+# rc.common reads START
+# shellcheck disable=SC2034
 START=18
 
+# shellcheck disable=SC2034
 NAME=rfhs_predictable_phys
 
 boot() {
@@ -12,6 +16,7 @@ boot() {
       sleep 1
       # check that we have all the needed interfaces
       allphy='yes'
+      # shellcheck disable=SC2013
       for phy in $(grep ' phy ' /etc/config/wireless | grep -v '^#' | awk '{gsub("\047","");print $3}' | sort); do
         if ! iw "${phy}" info > /dev/null 2>&1; then
           allphy='no'
@@ -25,7 +30,10 @@ boot() {
     done
   fi
   # this really needs to be reported upstream but it also just has to work NOW
+  # the $ are in the lines of mac80211.sh that these delete
+  # shellcheck disable=SC2016
   sed -i '/he_su_beamformer:${he_phy_cap:6:2}:0x80:$he_su_beamformer/d' /lib/netifd/wireless/mac80211.sh
+  # shellcheck disable=SC2016
   sed -i '/he_mu_beamformer:${he_phy_cap:8:2}:0x2:$he_mu_beamformer/d' /lib/netifd/wireless/mac80211.sh
-  set_state done
+  set_state 'done'
 }

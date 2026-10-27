@@ -1,7 +1,11 @@
 #!/bin/sh /etc/rc.common
+# shellcheck shell=busybox
 
+# rc.common reads START
+# shellcheck disable=SC2034
 START=20
 
+# shellcheck disable=SC2034
 NAME=rfhs_wifi_fixer
 
 boot() {
@@ -15,5 +19,5 @@ boot() {
       sleep 15
     done
   fi
-  set_state done
+  set_state 'done'
 }

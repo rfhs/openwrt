@@ -14,8 +14,7 @@ rfkill_check() {
 	if [ -z "$index" ]; then
 		return 187
 	fi
-	rfkill_status="$(sudo rfkill list "${index}" 2>&1)"
-	if [ $? != 0 ]; then
+	if ! rfkill_status="$(sudo rfkill list "${index}" 2>&1)"; then
 		printf "rfkill error: %s\n" "${rfkill_status}"
 		return 187
 	elif [ -z "${rfkill_status}" ]; then
@@ -39,8 +38,7 @@ rfkill_unblock() {
 	#attempt unblock and CHECK SUCCESS
 	#rfkill_status="$(sudo rfkill unblock "${1#phy}" 2>&1)"
 	#if [ $? != 0 ]; then
-		rfkill_status="$(sudo rfkill unblock "${index}" 2>&1)"
-		if [ $? != 0 ]; then
+		if ! rfkill_status="$(sudo rfkill unblock "${index}" 2>&1)"; then
       if [ "$(printf "%s" "${rfkill_status}" | grep -c "Usage")" -eq 1 ]; then
 				printf "Missing parameters in rfkill! Report this"
 			else
@@ -74,6 +72,12 @@ create_ns_link() {
 }
 
 TARBALL_FOLDER="${HOME}/development/openwrt/bin/targets/x86/64/"
+# rfctf-container has the healthcheck benchmark
+BENCH="${RFCTF_CONTAINER:-${HOME}/development/rfhs/rfctf-container}/tools/bench_healthcheck.sh"
+if [ ! -x "${BENCH}" ]; then
+  printf "%s not found, set RFCTF_CONTAINER to an rfctf-container checkout\n" "${BENCH}"
+  exit 1
+fi
 DISTRO=openwrt
 BUILD_VERSION_NUMBER="$(awk -F'"' '/CONFIG_VERSION_NUMBER/ {print $2}' "${TARBALL_FOLDER}/../../../../.config" )"
 BUILD_VERSION_CODE="$(awk -F'"' '/CONFIG_VERSION_CODE=/ {gsub(" ", "-"); print tolower($2)}' "${TARBALL_FOLDER}/../../../../.config" )"
@@ -81,7 +85,7 @@ TARBALL="rfhs-rfctf-${BUILD_VERSION_NUMBER}-${BUILD_VERSION_CODE}-x86-64-generic
 
 #Verify checksum matches before starting
 expected_sha256=$(awk '/tar\.gz/ {print $1}' "${TARBALL_FOLDER}/sha256sums")
-tarball_sha256="$(sha256sum ${TARBALL_FOLDER}${TARBALL} | awk '{print $1}')"
+tarball_sha256="$(sha256sum "${TARBALL_FOLDER}${TARBALL}" | awk '{print $1}')"
 if [ "${expected_sha256}" != "${tarball_sha256}" ]; then
   printf "Checksum failed, aborting for safety.\n"
   exit 1
@@ -122,7 +126,8 @@ fi
 # Get a list of the radios (a little safer than assuming)
 CONTAINER_PHYS="$(sudo airmon-ng | awk '/mac80211_hwsim/ {print $1}')"
 # Start the container
-docker run -d --rm --network none --name "${CONTAINER_NAME}" \
+# docker's own healthcheck runs would land in the benchmark's windows
+docker run -d --rm --no-healthcheck --network none --name "${CONTAINER_NAME}" \
   --tmpfs /run:mode=0755,nosuid,nodev,nr_inodes=800k,size=20%,strictatime \
   --tmpfs /tmp:mode=0755,nosuid,nodev,nr_inodes=800k,size=20% \
   --cap-add net_raw --cap-add net_admin \
@@ -152,7 +157,8 @@ for phy in ${CONTAINER_PHYS}; do
 done
 printf 'Sleeping for 30 seconds so openwrt can boot\n'
 sleep 30
-if docker exec "${CONTAINER_NAME}" /usr/sbin/rfhs_checker excessive; then
+if "${BENCH}" -t 100 "${CONTAINER_NAME}" \
+  && docker exec "${CONTAINER_NAME}" /usr/sbin/rfhs_checker excessive; then
   docker stop "${CONTAINER_NAME}"
   sudo modprobe -r mac80211_hwsim
   docker tag "${CI_REGISTRY_IMAGE}/${IMAGE}:${BUILD_VERSION_NUMBER}" "${CI_REGISTRY_IMAGE}/${IMAGE}:latest"
