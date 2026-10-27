@@ -202,15 +202,15 @@ if [ "${sleepy_tyme}" -gt "0" ]; then
 fi
 
 if [ "${excessive}" = "1" ]; then
-  for required_command in rfhs_predictable_phys grep sort iw sed xargs wc lsmod rmmod; do
-    if [ ! -x "$(command -v ${required_command} 2>&1)" ]; then
-      say "Missing required command: %s\n" "${required_command}"
+  for required_command in awk date grep iw iwinfo mkdir mktemp mv pgrep sleep sort ss stat tee touch wifi; do
+    if ! command -v "${required_command}" > /dev/null 2>&1; then
+      say 'Missing required command: %s\n' "${required_command}"
       fail_count=$((fail_count + 1))
     fi
   done
-  for rfhs_command in iptables cat ip fakepop ss; do
-    if [ ! -x "$(command -v ${rfhs_command} 2>&1)" ]; then
-      say "Missing rfhs command: %s\n" "${rfhs_command}"
+  for rfhs_command in fakepop iptables rfhs_predictable_phys; do
+    if ! command -v "${rfhs_command}" > /dev/null 2>&1; then
+      say 'Missing rfhs command: %s\n' "${rfhs_command}"
       fail_count=$((fail_count + 1))
     fi
   done

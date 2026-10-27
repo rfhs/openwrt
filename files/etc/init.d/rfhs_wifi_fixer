@@ -12,6 +12,14 @@ boot() {
   # This is dumb but wpad is started at 19 and network is started at 20
   # Wifi can't actually come up without network, which very well may be my whole problem.
   if [ -x '/usr/sbin/rfhs_checker' ]; then
+    missing_tools=""
+    for tool in sleep wifi; do
+      command -v "${tool}" > /dev/null 2>&1 || missing_tools="${missing_tools} ${tool}"
+    done
+    if [ -n "${missing_tools}" ]; then
+      printf '%s: required commands not found:%s\n' "${NAME}" "${missing_tools}" >&2
+      return 1
+    fi
     until /usr/sbin/rfhs_checker bootwifi; do
       # This will loop FOREVER until all the APs are up
       # Meaning that core networking never comes up if it fails

@@ -2,6 +2,15 @@
 
 set -eux
 
+missing_tools=""
+for tool in awk cp date docker grep head iw lsmod mountpoint rm sha256sum sleep sudo; do
+  command -v "${tool}" > /dev/null 2>&1 || missing_tools="${missing_tools} ${tool}"
+done
+if [ -n "${missing_tools}" ]; then
+  printf '%s: required commands not found:%s\n' "${0##*/}" "${missing_tools}" >&2
+  exit 1
+fi
+
 rfkill_check() {
 	#take phy and check blocks
 	if [ -z "${1}" ]; then

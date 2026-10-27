@@ -8,6 +8,15 @@
 # CPU and wall time of that many healthy passes.
 set -eu
 
+missing_tools=""
+for tool in dirname docker grep sed sort; do
+  command -v "${tool}" > /dev/null 2>&1 || missing_tools="${missing_tools} ${tool}"
+done
+if [ -n "${missing_tools}" ]; then
+  printf '%s: required commands not found:%s\n' "${0##*/}" "${missing_tools}" >&2
+  exit 1
+fi
+
 checker="$(dirname "${0}")/../files/usr/sbin/rfhs_checker"
 image=rfhs/openwrt:latest
 wireless=""
