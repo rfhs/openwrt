@@ -1,15 +1,6 @@
 #!/bin/sh
 set -e
 
-missing_tools=""
-for tool in basename iw sed wc xargs; do
-  command -v "${tool}" > /dev/null 2>&1 || missing_tools="${missing_tools} ${tool}"
-done
-if [ -n "${missing_tools}" ]; then
-  printf '%s: required commands not found:%s\n' "${0##*/}" "${missing_tools}" >&2
-  exit 1
-fi
-
 listallphys() {
   unset all_phys
   for i in /sys/class/ieee80211/*; do
@@ -156,25 +147,12 @@ assign_remaining() {
 
 if [ ! -f "/.dockerenv" ]; then
   # we don't use mac80211_hwsim on hardware
-  missing_tools=""
-  for tool in grep lsmod rmmod; do
-    command -v "${tool}" > /dev/null 2>&1 || missing_tools="${missing_tools} ${tool}"
-  done
-  if [ -n "${missing_tools}" ]; then
-    printf '%s: required commands not found:%s\n' "${0##*/}" "${missing_tools}" >&2
-    exit 1
-  fi
   lsmod | grep -q mac80211_hwsim && rmmod mac80211_hwsim
 fi
 
 printf "Preexisting phys: %s\n" "$(listallphys)"
 
 if [ "${1-}" = "reset" ]; then
-  if ! command -v seq > /dev/null 2>&1; then
-    printf '%s: required commands not found: seq
-' "${0##*/}" >&2
-    exit 1
-  fi
   reset_names
 fi
 if [ "${1}" = "verbose" ]; then

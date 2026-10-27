@@ -117,6 +117,7 @@ EOF
 docker exec -i "${c}" sh -c 'cat > /tmp/rfhs-test/reset' << 'EOF'
 #!/bin/sh
 t=/tmp/rfhs-test
+if [ -e /usr/bin/seq.hidden ]; then mv /usr/bin/seq.hidden /usr/bin/seq; fi
 cp "${t}/wireless.orig" /etc/config/wireless
 awk '!/^#/ && / ssid / { gsub("\047", ""); print $3 }' /etc/config/wireless > "${t}/ssids"
 echo OpenWrt >> "${t}/ssids"
@@ -324,6 +325,15 @@ fi
 run_case excessive ''
 name='excessive finds every command it needs and passes'
 if has 'exit 0' && ! has_re '^status Missing'; then
+  pass
+else
+  fail
+fi
+
+run_case excessive 'mv /usr/bin/seq /usr/bin/seq.hidden'
+name='excessive fails at once and names a command a shipped script needs when it is missing'
+if has 'exit 1' && has 'status Missing required command: seq (rfhs_predictable_phys)' \
+  && ! has_re '^status Check ' && ! has_re '^wifi '; then
   pass
 else
   fail

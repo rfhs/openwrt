@@ -34,6 +34,36 @@ else
   bootwifi=0
 fi
 
+# Build-time check that the image has every command its scripts run
+if [ "${excessive}" = "1" ]; then
+  missing_count=0
+  # need_commands file command...: reports each command that is missing
+  need_commands() {
+    need_file="${1}"
+    shift
+    for need_command in "$@"; do
+      if ! command -v "${need_command}" > /dev/null 2>&1; then
+        say 'Missing required command: %s (%s)\n' "${need_command}" "${need_file}"
+        missing_count=$((missing_count + 1))
+      fi
+    done
+  }
+  # rfhs_checker (this script)
+  need_commands rfhs_checker awk date grep iw iwinfo mkdir mktemp mv pgrep sleep sort ss stat tee touch wifi
+  # /usr/sbin/rfhs_predictable_phys, including its non-docker and reset branches
+  need_commands rfhs_predictable_phys basename grep iw lsmod rmmod sed seq wc xargs
+  # /etc/init.d/rfhs_predictable_phys
+  need_commands init.d/rfhs_predictable_phys awk grep iw sed sleep sort
+  # /etc/init.d/rfhs_wifi_fixer
+  need_commands init.d/rfhs_wifi_fixer sleep wifi
+  # the programs this image is meant to ship
+  need_commands image fakepop iptables rfhs_predictable_phys
+  if [ "${missing_count}" -gt "0" ]; then
+    mv "${apstatus}" "${apstatusfinal}"
+    exit 1
+  fi
+fi
+
 # sets waited=1 when it had to wait
 wait_for_it() {
   iter=0
@@ -201,20 +231,6 @@ if [ "${sleepy_tyme}" -gt "0" ]; then
   sleep "${sleepy_tyme}"
 fi
 
-if [ "${excessive}" = "1" ]; then
-  for required_command in awk date grep iw iwinfo mkdir mktemp mv pgrep sleep sort ss stat tee touch wifi; do
-    if ! command -v "${required_command}" > /dev/null 2>&1; then
-      say 'Missing required command: %s\n' "${required_command}"
-      fail_count=$((fail_count + 1))
-    fi
-  done
-  for rfhs_command in fakepop iptables rfhs_predictable_phys; do
-    if ! command -v "${rfhs_command}" > /dev/null 2>&1; then
-      say 'Missing rfhs command: %s\n' "${rfhs_command}"
-      fail_count=$((fail_count + 1))
-    fi
-  done
-fi
 waited=0
 wait_for_it
 # one configuration step can start right after another finished

@@ -9,14 +9,6 @@ START=18
 NAME=rfhs_predictable_phys
 
 boot() {
-  missing_tools=""
-  for tool in awk grep iw sed sleep sort; do
-    command -v "${tool}" > /dev/null 2>&1 || missing_tools="${missing_tools} ${tool}"
-  done
-  if [ -n "${missing_tools}" ]; then
-    printf '%s: required commands not found:%s\n' "${NAME}" "${missing_tools}" >&2
-    return 1
-  fi
   if [ -x '/usr/sbin/rfhs_predictable_phys' ]; then
     # set our interface names
     /usr/sbin/rfhs_predictable_phys
