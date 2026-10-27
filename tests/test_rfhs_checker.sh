@@ -1,7 +1,7 @@
 #!/bin/sh
 # Tests rfhs_checker in a throwaway container of the openwrt image, with fakes
-# first in PATH for iwinfo, ss, iw and wifi, and a tmpfs over
-# /sys/class/ieee80211 holding the configured phys.
+# first in PATH for iwinfo, ss, iw and wifi, and a tmpfs over /sys/class whose
+# ieee80211 holds the configured phys.
 #   ./tests/test_rfhs_checker.sh [-c checker] [-i image] [-w wireless] [-m runs]
 # -c defaults to this checkout's files/usr/sbin/rfhs_checker and -i to
 # rfhs/openwrt:latest; -w replaces /etc/config/wireless; -m also measures the
@@ -32,8 +32,10 @@ while getopts c:i:w:m: opt; do
 done
 
 c="rfhs-checker-test-$$"
+# The tmpfs goes over /sys/class: /sys/class/ieee80211 only exists on a host
+# with cfg80211 loaded, and docker can't make a mountpoint in a read-only /sys
 docker run -d --rm --name "${c}" --tmpfs /run:mode=0755,nosuid,nodev \
-  --tmpfs /sys/class/ieee80211 --entrypoint /bin/sleep "${image}" 3600 > /dev/null
+  --tmpfs /sys/class --entrypoint /bin/sleep "${image}" 3600 > /dev/null
 trap 'docker rm -f "${c}" > /dev/null 2>&1 || true' EXIT
 docker cp -q "${checker}" "${c}:/usr/sbin/rfhs_checker"
 if [ -n "${wireless}" ]; then
@@ -123,7 +125,8 @@ awk '!/^#/ && / ssid / { gsub("\047", ""); print $3 }' /etc/config/wireless > "$
 echo OpenWrt >> "${t}/ssids"
 printf '%s\n' 'tcp LISTEN 0 5 0.0.0.0:110 0.0.0.0:*' 'tcp LISTEN 0 5 0.0.0.0:22 0.0.0.0:*' \
   'udp UNCONN 0 0 0.0.0.0:67 0.0.0.0:*' 'udp UNCONN 0 0 0.0.0.0:53 0.0.0.0:*' > "${t}/sockets"
-rm -rf /sys/class/ieee80211/* /run/rfctf_status "${t}/wifi.log" /root/shared_persistent_storage/AP_status
+rm -rf /sys/class/ieee80211 /run/rfctf_status "${t}/wifi.log" /root/shared_persistent_storage/AP_status
+mkdir /sys/class/ieee80211
 for phy in $(awk '!/^#/ && / phy / { gsub("\047", ""); print $3 }' /etc/config/wireless); do
   mkdir -p "/sys/class/ieee80211/${phy}"
   echo 0 > "/sys/class/ieee80211/${phy}/index"
