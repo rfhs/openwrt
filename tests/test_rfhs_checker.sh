@@ -33,9 +33,11 @@ done
 
 c="rfhs-checker-test-$$"
 # The tmpfs goes over /sys/class: /sys/class/ieee80211 only exists on a host
-# with cfg80211 loaded, and docker can't make a mountpoint in a read-only /sys
+# with cfg80211 loaded, and docker can't make a mountpoint in a read-only /sys.
+# docker's AppArmor profile denies writes anywhere under /sys, even to a tmpfs.
 docker run -d --rm --name "${c}" --tmpfs /run:mode=0755,nosuid,nodev \
-  --tmpfs /sys/class --entrypoint /bin/sleep "${image}" 3600 > /dev/null
+  --tmpfs /sys/class --security-opt apparmor=unconfined \
+  --entrypoint /bin/sleep "${image}" 3600 > /dev/null
 trap 'docker rm -f "${c}" > /dev/null 2>&1 || true' EXIT
 docker cp -q "${checker}" "${c}:/usr/sbin/rfhs_checker"
 if [ -n "${wireless}" ]; then

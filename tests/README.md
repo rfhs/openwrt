@@ -7,8 +7,9 @@ container of the openwrt image without any radios. Fakes first in `PATH`
 stand in for `iw dev` and `iwinfo` (an AP for each SSID in a list), `ss` (a
 list of sockets), `wifi` (which logs what it was asked to do) and the old
 checker's `iw <phy> info`, and `/sys/class/ieee80211`, on a tmpfs over
-`/sys/class`, holds the configured phys, so the host needs no cfg80211. It
-checks that:
+`/sys/class`, holds the configured phys, so the host needs no cfg80211. The
+container runs without AppArmor confinement, as docker's profile denies
+writes under `/sys`. It checks that:
 
 - a healthy pass succeeds, leaves the wifi alone and, with nothing
   configuring the wifi, takes under a second
