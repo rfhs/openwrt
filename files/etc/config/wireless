@@ -73,7 +73,7 @@ config wifi-iface
 	option key2 'FEEDC0FFEE'
 	option key3 'FEEDC0FFEE'
 	option key4 'FEEDC0FFEE'
-	option isolate '1'
+	option isolate '0'
 	option maxassoc '50'
 	option network 'Admin42'
 
@@ -88,7 +88,7 @@ config wifi-iface
 	option key2 'FEEDC0FFEE'
 	option key3 'FEEDC0FFEE'
 	option key4 'FEEDC0FFEE'
-	option isolate '1'
+	option isolate '0'
 	option maxassoc '50'
 	option network 'Admin42'
 
@@ -103,7 +103,7 @@ config wifi-iface
 	option key2 '0FEEDDEADBEEFFEEDDEADBEEF0'
 	option key3 '0FEEDDEADBEEFFEEDDEADBEEF0'
 	option key4 '0FEEDDEADBEEFFEEDDEADBEEF0'
-	option isolate '1'
+	option isolate '0'
 	option maxassoc '50'
 	option network 'Admin42'
 
@@ -118,7 +118,7 @@ config wifi-iface
 	option key2 '0FEEDDEADBEEFFEEDDEADBEEF0'
 	option key3 '0FEEDDEADBEEFFEEDDEADBEEF0'
 	option key4 '0FEEDDEADBEEFFEEDDEADBEEF0'
-	option isolate '1'
+	option isolate '0'
 	option maxassoc '50'
 	option network 'Admin42'
 
@@ -129,7 +129,7 @@ config wifi-iface
 	option ssid 'RFHS_WPA_2G'
 	option encryption 'psk+tkip'
 	option key 'This is only a test'
-	option isolate '1'
+	option isolate '0'
 	option maxassoc '50'
 	option network 'Admin42'
 
@@ -140,7 +140,7 @@ config wifi-iface
 	option ssid 'RFHS_WPA_5G'
 	option encryption 'psk+tkip+ccmp'
 	option key 'This is only a test'
-	option isolate '1'
+	option isolate '0'
 	option maxassoc '50'
 	option network 'Admin42'
 
@@ -151,7 +151,7 @@ config wifi-iface
 	option ssid 'RFHS_WPA_HIDDEN_2G'
 	option encryption 'psk-mixed+tkip+ccmp'
 	option key 'This is only a test'
-	option isolate '1'
+	option isolate '0'
 	option hidden '1'
 	option maxassoc '50'
 	option network 'Admin42'
@@ -163,7 +163,7 @@ config wifi-iface
 	option ssid 'RFHS_WPA_HIDDEN_5G'
 	option encryption 'psk-mixed+tkip+ccmp'
 	option key 'This is only a test'
-	option isolate '1'
+	option isolate '0'
 	option hidden '1'
 	option maxassoc '50'
 	option network 'Admin42'
@@ -178,7 +178,7 @@ config wifi-iface
 	option encryption 'psk2+tkip+ccmp'
 	option key 'This is only a test'
 	option ieee80211w '1'
-	option isolate '1'
+	option isolate '0'
 	option maxassoc '50'
 	option network 'Admin42'
 
@@ -190,7 +190,7 @@ config wifi-iface
 	option encryption 'psk2+tkip+ccmp'
 	option key 'This is only a test'
 	option ieee80211w '1'
-	option isolate '1'
+	option isolate '0'
 	option maxassoc '50'
 	option network 'Admin42'
 
@@ -202,7 +202,7 @@ config wifi-iface
 	option encryption 'psk2+ccmp'
 	option key 'This is only a test'
 	option ieee80211w '2'
-	option isolate '1'
+	option isolate '0'
 	option maxassoc '50'
 	option network 'Admin42'
 
@@ -214,7 +214,7 @@ config wifi-iface
 	option encryption 'psk2+ccmp'
 	option key 'This is only a test'
 	option ieee80211w '2'
-	option isolate '1'
+	option isolate '0'
 	option maxassoc '50'
 	option network 'Admin42'
 
@@ -229,7 +229,7 @@ config wifi-iface
 	option nasid 'RFHS'
 	option mobility_domain '1337'
 	option r0_key_lifetime '65535'
-	option isolate '1'
+	option isolate '0'
 	option maxassoc '50'
 	option network 'Admin42'
 
@@ -244,7 +244,7 @@ config wifi-iface
 	option nasid 'RFHS'
 	option mobility_domain '1337'
 	option r0_key_lifetime '65535'
-	option isolate '1'
+	option isolate '0'
 	option maxassoc '50'
 	option network 'Admin42'
 
@@ -260,7 +260,7 @@ config wifi-iface
 	option nasid 'RFHSS'
 	option mobility_domain '1338'
 	option r0_key_lifetime '65535'
-	option isolate '1'
+	option isolate '0'
 	option maxassoc '50'
 	option network 'Admin42'
 
@@ -276,6 +276,6 @@ config wifi-iface
 	option nasid 'RFHSS'
 	option mobility_domain '1338'
 	option r0_key_lifetime '65535'
-	option isolate '1'
+	option isolate '0'
 	option maxassoc '50'
 	option network 'Admin42'
