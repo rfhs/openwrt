@@ -9,10 +9,11 @@
 # public tests the image's own config: every wifi network has working DHCP and
 # DNS, reaches the admin page and reaches every other wifi network.
 # restricted mounts overlay over the image, as the game does: every wifi
-# network has working DHCP and DNS and reaches the internet, firewall rules
-# name the admin address for each, and it reaches neither the admin network
-# nor any other wifi network. Its gateway answers on DHCP, DNS and ping, and
-# on exactly what services lists for it, one "network port/proto" a line, or
+# network has working DHCP and DNS and reaches the internet, firewall rules in
+# its zone reject the admin address and the admin network, and it reaches
+# neither the admin network nor any other wifi network, while the admin
+# network reaches it. Its gateway answers on DHCP, DNS and ping, and on
+# exactly what services lists for it, one "network port/proto" a line, or
 # nothing else without -s. tests/firewall is a public stand-in for the game's
 # overlay, wctf-restricted/wifi/openwrt/airkraken/files, and
 # tests/firewall-gateway-services its list.
@@ -191,6 +192,8 @@ if ! grep -q '^wifi ' "${work}/networks"; then
 fi
 admin_network="$(awk '$1 == "admin" {print $2}' "${work}/networks")"
 admin_zone="$(awk '$1 == "admin" {print $3}' "${work}/networks")"
+admin_device="$(awk '$1 == "admin" {print $6}' "${work}/networks")"
+admin_subnet="$(docker exec "${router}" ip -4 route show dev "${admin_device}" proto kernel scope link | awk '{print $1; exit}')"
 
 if docker exec "${router}" nft list table inet fw4 > "${work}/ruleset" 2> /dev/null \
   && grep -q 'chain input ' "${work}/ruleset"; then
@@ -214,6 +217,14 @@ while read -r kind network zone address mask device vlan; do
       pass "${network} has a firewall rule blocking the admin address"
     else
       fail "${network} has no firewall rule blocking the admin address, ${admin_address}"
+    fi
+    if [ "${zone}" != - ] && [ "${zone}" != "${admin_zone}" ]; then
+      if docker exec "${router}" nft list chain inet fw4 "forward_${zone}" | sed 's/ comment ".*//' \
+        | grep "ip daddr ${admin_subnet:-unknown} " | grep -q -E 'reject|drop'; then
+        pass "${network} has a firewall rule blocking the admin network, ${admin_subnet}"
+      else
+        fail "${network} has no firewall rule blocking the admin network, ${admin_subnet:-unknown}"
+      fi
     fi
   fi
   if [ "${address}" = - ] || [ "${mask}" = - ] || [ "${device}" = - ] || [ "${vlan}" = - ]; then
@@ -265,8 +276,10 @@ while read -r _ network _ address mask _ vlan; do
   leased="$(docker exec "${probe}" ip -4 -o addr show "eth0.${vlan}" | awk '{print $4}')"
   printf '%s %s %s\n' "${network}" "${address}" "${leased%/*}" >> "${work}/leases"
   docker exec -d "${probe}" ncat -k -l 8080
+  # Without --interface, dnsmasq ignores queries from other subnets, which
+  # would look blocked.
   docker exec -d "${probe}" dnsmasq -k --user=root --no-resolv --no-hosts --port=8081 \
-    "--address=/${internet_name}/${internet}"
+    "--interface=eth0.${vlan}" "--address=/${internet_name}/${internet}"
 done < "${work}/unique"
 
 # Each line of targets: network, address, proto, port. What the router listens
@@ -325,6 +338,9 @@ while read -r network address _; do
       grep "^${network} ${address} " "${work}/targets" | docker exec -i "${probe}" sh -c "${probe_script}" > "${work}/own.${network}"
       docker exec -i "${probe}" sh -c "${probe_script}" < "${work}/internet" > "${work}/internet.${network}"
     ) &
+  elif [ "${network}" = "${admin_network}" ]; then
+    grep -v "^${network} " "${work}/targets" \
+      | docker exec -i "${probe}" sh -c "${probe_script}" > "${work}/admin-reach" &
   fi
 done < "${work}/leases"
 wait
@@ -490,6 +506,28 @@ while read -r network _; do
   fi
 done < "${work}/services"
 
+if [ -f "${work}/admin-reach" ]; then
+  if ! tail -n 1 "${work}/admin-reach" | grep -qx 'done'; then
+    fail "the probe on ${admin_network} didn't finish"
+  else
+    missing=""
+    while read -r owner to proto port; do
+      case "${proto}" in
+        icmp | host-*)
+          if grep -q "^wifi ${owner} " "${work}/networks" \
+            && ! grep -q "^${owner} ${to} ${proto} ${port}\$" "${work}/admin-reach"; then
+            fail "${admin_network} can't reach ${owner}: $(target "${to}" "${proto}" "${port}")"
+            missing=1
+          fi
+          ;;
+      esac
+    done < "${work}/targets"
+    if [ -z "${missing}" ]; then
+      pass "${admin_network} reaches every wifi network"
+    fi
+  fi
+fi
+
 # A test that can't fail proves nothing: change the firewall in this throwaway
 # router and check that the probes see it.
 if [ "${mode}" = public ]; then
@@ -524,6 +562,17 @@ else
     else
       fail "self-check: with a rule added letting ${first_network} reach ${second_network}, the test doesn't see it, so its other results prove nothing"
     fi
+  fi
+fi
+if [ -f "${work}/admin-reach" ]; then
+  docker exec "${router}" nft insert rule inet fw4 forward iifname "\"${admin_device}\"" \
+    oifname "\"${first_device}\"" reject
+  awk -v network="${first_network}" '$1 == network {print $1, $3, "host-tcp", 8080}' "${work}/leases" \
+    | docker exec -i "$(probe_name "${admin_network}")" sh -c "${probe_script}" > "${work}/hole"
+  if grep -q "^${first_network} " "${work}/hole"; then
+    fail "self-check: with a rule added blocking ${admin_network} from ${first_network}, the test still sees it get through, so its other results prove nothing"
+  else
+    pass "self-check: with a rule added blocking ${admin_network} from ${first_network}, the test sees it blocked"
   fi
 fi
 

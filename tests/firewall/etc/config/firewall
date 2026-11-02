@@ -159,6 +159,14 @@ config rule
 	option target 'REJECT'
 
 config rule
+	option name 'Block lan10 from the admin network'
+	option src 'lan10'
+	option dest '*'
+	option proto 'all'
+	option dest_ip '172.17.42.0/24'
+	option target 'REJECT'
+
+config rule
 	option name 'Block lan20 from the admin address'
 	option src 'lan20'
 	option proto 'all'
@@ -166,8 +174,24 @@ config rule
 	option target 'REJECT'
 
 config rule
+	option name 'Block lan20 from the admin network'
+	option src 'lan20'
+	option dest '*'
+	option proto 'all'
+	option dest_ip '172.17.42.0/24'
+	option target 'REJECT'
+
+config rule
 	option name 'Block lan30 from the admin address'
 	option src 'lan30'
 	option proto 'all'
 	option dest_ip '172.17.42.1'
+	option target 'REJECT'
+
+config rule
+	option name 'Block lan30 from the admin network'
+	option src 'lan30'
+	option dest '*'
+	option proto 'all'
+	option dest_ip '172.17.42.0/24'
 	option target 'REJECT'

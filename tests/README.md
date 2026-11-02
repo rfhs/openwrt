@@ -88,13 +88,15 @@ is private. Every wifi network must:
 
 - have the same DHCP and DNS
 - reach the internet with TCP, UDP and ping
-- be a network and firewall zone of its own, with a rule for the admin address
-  in its zone that rejects or drops
+- be a network and firewall zone of its own, with rules in its zone that
+  reject or drop the admin address and the whole admin network
 - reach no port of any address of the admin network, nor ping it
 - get neither the admin page nor `/ubus` from any address of the router
 - reach no address of any other wifi network, the router's or a client's
 - have its gateway answer on DHCP, DNS and ping, and on exactly what the `-s`
   file lists for that network, or nothing else without `-s`
+- be reachable from the admin network, its gateway and its clients, with
+  ping, TCP and UDP, which also shows the replies get back
 
 The `-s` file has one `network port/proto` a line, such as `lan20 80/tcp`,
 with `#` comments. A port the gateway answers on that isn't listed fails, as
