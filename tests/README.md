@@ -68,8 +68,9 @@ are covered without changing the test.
 
 ```sh
 ./tests/test_firewall.sh [-i image] public
-./tests/test_firewall.sh [-i image] restricted tests/firewall
-./tests/test_firewall.sh [-i image] restricted ../wctf-restricted/wifi/openwrt/airkraken/files
+./tests/test_firewall.sh [-i image] -s tests/firewall-gateway-services restricted tests/firewall
+./tests/test_firewall.sh [-i image] -s ../wctf-restricted/wifi/openwrt/airkraken/gateway-services \
+  restricted ../wctf-restricted/wifi/openwrt/airkraken/files
 ```
 
 `public` tests the image's own config. Every wifi network must:
@@ -92,9 +93,19 @@ is private. Every wifi network must:
 - reach no port of any address of the admin network, nor ping it
 - get neither the admin page nor `/ubus` from any address of the router
 - reach no address of any other wifi network, the router's or a client's
+- have its gateway answer on DHCP, DNS and ping, and on exactly what the `-s`
+  file lists for that network, or nothing else without `-s`
+
+The `-s` file has one `network port/proto` a line, such as `lan20 80/tcp`,
+with `#` comments. A port the gateway answers on that isn't listed fails, as
+does a listed one it doesn't answer on, or a network that isn't a wifi network.
+`tests/firewall-gateway-services` goes with the stand-in, and the game's sits
+next to its overlay, outside `files/`, so it doesn't ship in the image.
 
 Both then change the firewall in the throwaway router and check that the
-probes see it, as a test that can't fail proves nothing. The router's boot
+probes see it, as a test that can't fail proves nothing. These lines start
+`self-check:`; a PASS there means the test works, not that the config has a
+hole. The router's boot
 scripts that wait for radios are replaced, and `net.ipv4.icmp_ratelimit` is 0,
 or some blocked udp ports would go unrefused and look open. A silent udp port
 counts as open. It prints what each gateway answers on its own network, and
@@ -105,7 +116,8 @@ bridge or, with `isolate`, in the AP, so the probes can't see it. The firewall
 is what's tested here, and wan is a stand-in, not the game's own uplink.
 
 `docker-build.sh` runs `public`, `restricted tests/firewall` and `restricted`
-with the game's overlay, and pushes nothing unless all three pass. It pushes
-only from a host with wctf-restricted, which elsewhere it can skip.
-`.github/workflows/test.yml` has no wctf-restricted, so it runs `public` and
-`restricted tests/firewall` against the published image.
+with the game's overlay, each restricted run with its `-s` file, and pushes
+nothing unless all three pass. It pushes only from a host with wctf-restricted,
+which elsewhere it can skip. `.github/workflows/test.yml` has no
+wctf-restricted, so it runs `public` and `restricted tests/firewall` against
+the published image.

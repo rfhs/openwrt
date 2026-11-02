@@ -55,11 +55,14 @@ push=""
 if [ "$(hostname)" = "Nu" ] || [ "$(hostname)" = "naga" ]; then
   push=1
 fi
-game_config="${WCTF_RESTRICTED:-${HOME}/development/rfhs/wctf-restricted}/wifi/openwrt/airkraken/files"
+game="${WCTF_RESTRICTED:-${HOME}/development/rfhs/wctf-restricted}/wifi/openwrt/airkraken"
+game_config="${game}/files"
 RFCTF_CONTAINER="${RFCTF}" ./tests/test_firewall.sh -i "${CI_REGISTRY_IMAGE}/${IMAGE}:${IMAGE_VERSION}" public
-RFCTF_CONTAINER="${RFCTF}" ./tests/test_firewall.sh -i "${CI_REGISTRY_IMAGE}/${IMAGE}:${IMAGE_VERSION}" restricted tests/firewall
+RFCTF_CONTAINER="${RFCTF}" ./tests/test_firewall.sh -i "${CI_REGISTRY_IMAGE}/${IMAGE}:${IMAGE_VERSION}" \
+  -s tests/firewall-gateway-services restricted tests/firewall
 if [ -n "${push}" ] || [ -d "${game_config}" ]; then
-  RFCTF_CONTAINER="${RFCTF}" ./tests/test_firewall.sh -i "${CI_REGISTRY_IMAGE}/${IMAGE}:${IMAGE_VERSION}" restricted "${game_config}"
+  RFCTF_CONTAINER="${RFCTF}" ./tests/test_firewall.sh -i "${CI_REGISTRY_IMAGE}/${IMAGE}:${IMAGE_VERSION}" \
+    -s "${game}/gateway-services" restricted "${game_config}"
 else
   printf "No %s, so the game's config is untested and this can't push\n" "${game_config}"
 fi

@@ -5,31 +5,41 @@
 # as a wifi client's, so this needs neither radios nor root. Another container
 # on wan stands in for the internet, as openwrt's upstream DHCP and DNS.
 #   ./tests/test_firewall.sh [-i image] public
-#   ./tests/test_firewall.sh [-i image] restricted overlay
+#   ./tests/test_firewall.sh [-i image] [-s services] restricted overlay
 # public tests the image's own config: every wifi network has working DHCP and
 # DNS, reaches the admin page and reaches every other wifi network.
 # restricted mounts overlay over the image, as the game does: every wifi
 # network has working DHCP and DNS and reaches the internet, firewall rules
 # name the admin address for each, and it reaches neither the admin network
-# nor any other wifi network. tests/firewall is a public stand-in for the
-# game's overlay, wctf-restricted/wifi/openwrt/airkraken/files.
+# nor any other wifi network. Its gateway answers on DHCP, DNS and ping, and
+# on exactly what services lists for it, one "network port/proto" a line, or
+# nothing else without -s. tests/firewall is a public stand-in for the game's
+# overlay, wctf-restricted/wifi/openwrt/airkraken/files, and
+# tests/firewall-gateway-services its list.
 # The networks, addresses and listening ports all come from the running
 # router. RFCTF_CONTAINER is an rfctf-container checkout, by default
 # ~/development/rfhs/rfctf-container.
 set -eu
 
 image=rfhs/openwrt:latest
-while getopts i: opt; do
+services=/dev/null
+while getopts i:s: opt; do
   case "${opt}" in
     i) image="${OPTARG}";;
+    s) services="${OPTARG}";;
     *) exit 2;;
   esac
 done
 shift $((OPTIND - 1))
 mode="${1:-}"
 overlay="${2:-}"
-if { [ "${mode}" != public ] || [ "$#" -ne 1 ]; } && { [ "${mode}" != restricted ] || [ "$#" -ne 2 ]; }; then
-  printf 'usage: %s [-i image] public\n       %s [-i image] restricted overlay\n' "${0}" "${0}" >&2
+if { [ "${mode}" != public ] || [ "$#" -ne 1 ] || [ "${services}" != /dev/null ]; } \
+  && { [ "${mode}" != restricted ] || [ "$#" -ne 2 ]; }; then
+  printf 'usage: %s [-i image] public\n       %s [-i image] [-s services] restricted overlay\n' "${0}" "${0}" >&2
+  exit 2
+fi
+if [ ! -r "${services}" ]; then
+  printf "Can't read %s\n" "${services}" >&2
   exit 2
 fi
 missing_tools=""
@@ -66,6 +76,7 @@ cleanup() {
   rm -rf "${work}"
 }
 trap cleanup EXIT
+sed -e 's/#.*//' -e 's/[[:space:]][[:space:]]*/ /g' -e 's/^ //' -e 's/ $//' -e '/^$/d' "${services}" > "${work}/services"
 
 failed=0
 pass() {
@@ -439,7 +450,8 @@ EOF
   own=""
   while read -r owner to proto port; do
     case "${owner}:${proto}" in
-      done:*) ;;
+      done:*) continue;;
+      *:icmp) own="${own} ping"; continue;;
       *:tcp)
         for scheme in http https; do
           url="${scheme}://${to}:${port}"
@@ -451,14 +463,32 @@ EOF
             fail "${network} gets the admin page at ${url}/"
           fi
         done
-        own="${own} ${port}/tcp"
         ;;
-      *:udp) own="${own} ${port}/udp";;
-      *:icmp) own="${own} ping";;
+    esac
+    own="${own} ${port}/${proto}"
+    case "${proto}/${port}" in
+      tcp/53 | udp/53 | udp/67) ;;
+      *)
+        if ! grep -qx "${network} ${port}/${proto}" "${work}/services"; then
+          fail "${network}'s gateway answers on ${port}/${proto}, which ${services} doesn't list for it"
+        fi
+        ;;
     esac
   done < "${work}/own.${network}"
+  while read -r _ service; do
+    if [ -n "${service}" ] && ! grep -qx "${network} ${address} ${service#*/} ${service%/*}" "${work}/own.${network}"; then
+      fail "${network}'s gateway doesn't answer on ${service}, which ${services} lists for it"
+    fi
+  done << EOF
+$(grep "^${network} " "${work}/services" || true)
+EOF
   note "${network}'s gateway answers it on:${own:- nothing}"
 done < "${work}/leases"
+while read -r network _; do
+  if ! grep -q "^wifi ${network} " "${work}/networks"; then
+    fail "${services} lists ${network}, which isn't a wifi network"
+  fi
+done < "${work}/services"
 
 # A test that can't fail proves nothing: change the firewall in this throwaway
 # router and check that the probes see it.
@@ -468,9 +498,9 @@ if [ "${mode}" = public ]; then
   printf '%s %s tcp %s\n' "${admin_network}" "${admin_address}" "${admin_port}" \
     | docker exec -i "${first_probe}" sh -c "${probe_script}" > "${work}/hole"
   if grep -q "^${admin_network} " "${work}/hole"; then
-    fail "the test doesn't see the admin page blocked from ${first_network}"
+    fail "self-check: with a rule added blocking the admin page from ${first_network}, the test still sees it get through, so its other results prove nothing"
   else
-    pass "the test sees the admin page blocked from ${first_network}"
+    pass "self-check: with a rule added blocking the admin page from ${first_network}, the test sees it blocked"
   fi
 else
   docker exec "${router}" nft insert rule inet fw4 input iifname "\"${first_device}\"" \
@@ -478,9 +508,9 @@ else
   printf '%s %s tcp %s\n' "${admin_network}" "${admin_address}" "${admin_port}" \
     | docker exec -i "${first_probe}" sh -c "${probe_script}" > "${work}/hole"
   if grep -q "^${admin_network} " "${work}/hole"; then
-    pass "the test sees a hole opened from ${first_network} to the admin page"
+    pass "self-check: with a rule added letting ${first_network} reach the admin page, the test sees it get through"
   else
-    fail "the test doesn't see a hole opened from ${first_network} to the admin page"
+    fail "self-check: with a rule added letting ${first_network} reach the admin page, the test doesn't see it, so its other results prove nothing"
   fi
   if [ -n "${second}" ]; then
     second_network="${second% *}"
@@ -490,9 +520,9 @@ else
     awk -v network="${second_network}" '$1 == network {print $1, $3, "host-tcp", 8080}' "${work}/leases" \
       | docker exec -i "${first_probe}" sh -c "${probe_script}" > "${work}/hole"
     if grep -q "^${second_network} " "${work}/hole"; then
-      pass "the test sees a hole opened from ${first_network} to ${second_network}"
+      pass "self-check: with a rule added letting ${first_network} reach ${second_network}, the test sees it get through"
     else
-      fail "the test doesn't see a hole opened from ${first_network} to ${second_network}"
+      fail "self-check: with a rule added letting ${first_network} reach ${second_network}, the test doesn't see it, so its other results prove nothing"
     fi
   fi
 fi
