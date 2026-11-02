@@ -123,3 +123,20 @@ nothing unless all three pass. It pushes only from a host with wctf-restricted,
 which elsewhere it can skip. `.github/workflows/test.yml` has no
 wctf-restricted, so it runs `public` and `restricted tests/firewall` against
 the published image.
+
+## test_bridge_ageing.sh
+
+Measures what `ageing_time 0` on the bridges changes, so clients sharing a MAC
+can be weighed against flooding. It adds three docker networks to a wifi
+network's bridge as stand-ins for its APs, with a client on each, and needs
+neither radios nor root. It prints the same measurements with the bridge learning, with
+`ageing_time 0` and learning again: ping and tcp between clients, what goes
+out a third port, and ping to a client with another client on the same MAC. It
+measures the bridge, so what an AP does with a frame it's given isn't covered.
+
+```sh
+./tests/test_bridge_ageing.sh [-i image] [overlay]
+```
+
+overlay defaults to `tests/firewall`. It reports numbers and doesn't pass or
+fail, so nothing runs it automatically.
