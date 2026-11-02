@@ -39,3 +39,17 @@ healthy pass, without and with `/run/rfctf_status`. The fakes are shell
 scripts, so they cost more than the real `iw` and `ss`. It prints PASS or FAIL for each check and
 exits 1 if any failed. `.github/workflows/test.yml` runs it, with `-m 20`,
 against `rfhs/openwrt:latest`.
+
+## test_image_files.sh
+
+Checks that an image has this checkout's `files/`: each file's contents and
+mode and each symlink, without starting the image. `docker-build.sh` runs it
+on every image it builds, as `files/` is what makes the image newer than its
+OpenWrt tarball. An image built from an older checkout fails it, so it isn't
+in CI, which tests the published image.
+
+```sh
+./tests/test_image_files.sh rfhs/openwrt:4.6.4.1
+```
+
+It prints PASS or FAIL for each file and exits 1 if any failed.

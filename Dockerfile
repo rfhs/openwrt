@@ -16,6 +16,7 @@ LABEL org.opencontainers.image.created=$BUILD_DATE \
 
 #here we pull in the rootfs from catalyst
 ADD $TARBALL /
+COPY files/ /
 
 CMD ["/sbin/init"]
 
