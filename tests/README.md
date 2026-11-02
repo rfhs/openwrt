@@ -53,3 +53,59 @@ in CI, which tests the published image.
 ```
 
 It prints PASS or FAIL for each file and exits 1 if any failed.
+
+## test_firewall.sh
+
+Tests what the wifi networks can reach, with docker and no radios or root. It
+starts the image unprivileged, with `openwrt_docker_args` and `openwrt_start`
+from rfctf-container's `startup/rfhs-helpers.sh`, as the game does, on two
+internal networks. Each wifi network gets a container on its VLAN of eth0,
+which takes a DHCP lease, so its frames pass the same bridge and firewall zone
+as a wifi client's. A container on wan stands in for the internet: it is
+openwrt's upstream DHCP and DNS, and holds an address to reach. The networks,
+addresses and listening ports all come from the running router, so new ones
+are covered without changing the test.
+
+```sh
+./tests/test_firewall.sh [-i image] public
+./tests/test_firewall.sh [-i image] restricted tests/firewall
+./tests/test_firewall.sh [-i image] restricted ../wctf-restricted/wifi/openwrt/airkraken/files
+```
+
+`public` tests the image's own config. Every wifi network must:
+
+- get a DHCP lease with its router as the gateway
+- have its gateway answer DNS for local names, and resolve internet names
+  through it, which are separate checks: the first failing means DNS is down
+  and only the second means it has no upstream
+- load the admin page
+- reach every other wifi network
+
+`restricted` mounts an overlay over the image, as `rfhs-container-init` mounts
+the game's. `tests/firewall` is a public stand-in for it, as wctf-restricted
+is private. Every wifi network must:
+
+- have the same DHCP and DNS
+- reach the internet with TCP, UDP and ping
+- be a network and firewall zone of its own, with a rule for the admin address
+  in its zone that rejects or drops
+- reach no port of any address of the admin network, nor ping it
+- get neither the admin page nor `/ubus` from any address of the router
+- reach no address of any other wifi network, the router's or a client's
+
+Both then change the firewall in the throwaway router and check that the
+probes see it, as a test that can't fail proves nothing. The router's boot
+scripts that wait for radios are replaced, and `net.ipv4.icmp_ratelimit` is 0,
+or some blocked udp ports would go unrefused and look open. A silent udp port
+counts as open. It prints what each gateway answers on its own network, and
+fails on any routable IPv6 address, which it can't probe.
+
+It doesn't cover traffic between clients of one network, which stays on the
+bridge or, with `isolate`, in the AP, so the probes can't see it. The firewall
+is what's tested here, and wan is a stand-in, not the game's own uplink.
+
+`docker-build.sh` runs `public`, `restricted tests/firewall` and `restricted`
+with the game's overlay, and pushes nothing unless all three pass. It pushes
+only from a host with wctf-restricted, which elsewhere it can skip.
+`.github/workflows/test.yml` has no wctf-restricted, so it runs `public` and
+`restricted tests/firewall` against the published image.

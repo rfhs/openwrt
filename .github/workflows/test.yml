@@ -65,3 +65,25 @@ jobs:
         run: |
           docker pull rfhs/openwrt:latest
           ./tests/test_rfhs_checker.sh -m 20
+
+  firewall:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/checkout@v7
+        with:
+          repository: rfhs/rfctf-container
+          path: rfctf-container
+          persist-credentials: false
+
+      - name: Test the published image's config and a stand-in for the game's
+        env:
+          RFCTF_CONTAINER: ${{ github.workspace }}/rfctf-container
+        run: |
+          docker pull rfhs/openwrt:latest
+          ./tests/test_firewall.sh public
+          ./tests/test_firewall.sh restricted tests/firewall

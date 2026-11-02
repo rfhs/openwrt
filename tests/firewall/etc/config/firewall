@@ -1,0 +1,173 @@
+config defaults
+	option syn_flood '1'
+	option input 'REJECT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+
+config zone
+	option name 'wan'
+	option network 'wan'
+	option input 'REJECT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+	option masq '1'
+	option mtu_fix '1'
+	option family 'ipv4'
+
+config zone
+	option name 'Admin42'
+	option network 'Admin42'
+	option input 'ACCEPT'
+	option output 'ACCEPT'
+	option forward 'ACCEPT'
+	option family 'ipv4'
+
+config forwarding
+	option src 'Admin42'
+	option dest 'wan'
+
+config zone
+	option name 'lan10'
+	option network 'lan10'
+	option input 'REJECT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+
+config forwarding
+	option src 'lan10'
+	option dest 'wan'
+
+config forwarding
+	option src 'Admin42'
+	option dest 'lan10'
+
+config rule
+	option name 'Allow lan10 DHCP'
+	option src 'lan10'
+	option proto 'udp'
+	option dest_port '67'
+	list dest_ip '255.255.255.255'
+	list dest_ip '172.16.10.1'
+	option target 'ACCEPT'
+
+config rule
+	option name 'Allow lan10 DNS'
+	option src 'lan10'
+	option proto 'tcp udp'
+	option dest_port '53'
+	option dest_ip '172.16.10.1'
+	option target 'ACCEPT'
+
+config rule
+	option name 'Allow lan10 ping'
+	option src 'lan10'
+	option proto 'icmp'
+	option dest_ip '172.16.10.1'
+	option target 'ACCEPT'
+
+config zone
+	option name 'lan20'
+	option network 'lan20'
+	option input 'REJECT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+
+config forwarding
+	option src 'lan20'
+	option dest 'wan'
+
+config forwarding
+	option src 'Admin42'
+	option dest 'lan20'
+
+config rule
+	option name 'Allow lan20 DHCP'
+	option src 'lan20'
+	option proto 'udp'
+	option dest_port '67'
+	list dest_ip '255.255.255.255'
+	list dest_ip '172.16.20.1'
+	option target 'ACCEPT'
+
+config rule
+	option name 'Allow lan20 DNS'
+	option src 'lan20'
+	option proto 'tcp udp'
+	option dest_port '53'
+	option dest_ip '172.16.20.1'
+	option target 'ACCEPT'
+
+config rule
+	option name 'Allow lan20 ping'
+	option src 'lan20'
+	option proto 'icmp'
+	option dest_ip '172.16.20.1'
+	option target 'ACCEPT'
+
+config zone
+	option name 'lan30'
+	option network 'lan30'
+	option input 'REJECT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+
+config forwarding
+	option src 'lan30'
+	option dest 'wan'
+
+config forwarding
+	option src 'Admin42'
+	option dest 'lan30'
+
+config rule
+	option name 'Allow lan30 DHCP'
+	option src 'lan30'
+	option proto 'udp'
+	option dest_port '67'
+	list dest_ip '255.255.255.255'
+	list dest_ip '172.16.30.1'
+	option target 'ACCEPT'
+
+config rule
+	option name 'Allow lan30 DNS'
+	option src 'lan30'
+	option proto 'tcp udp'
+	option dest_port '53'
+	option dest_ip '172.16.30.1'
+	option target 'ACCEPT'
+
+config rule
+	option name 'Allow lan30 ping'
+	option src 'lan30'
+	option proto 'icmp'
+	option dest_ip '172.16.30.1'
+	option target 'ACCEPT'
+
+config rule
+	option name 'Allow lan20 challenge'
+	option src 'lan20'
+	option proto 'tcp'
+	option dest_port '80'
+	option dest_ip '172.16.20.1'
+	option target 'ACCEPT'
+
+config rule
+	option name 'Block lan10 from the admin address'
+	option src 'lan10'
+	option proto 'all'
+	option dest_ip '172.17.42.1'
+	option target 'REJECT'
+
+config rule
+	option name 'Block lan20 from the admin address'
+	option src 'lan20'
+	option proto 'all'
+	option dest_ip '172.17.42.1'
+	option target 'REJECT'
+
+config rule
+	option name 'Block lan30 from the admin address'
+	option src 'lan30'
+	option proto 'all'
+	option dest_ip '172.17.42.1'
+	option target 'REJECT'

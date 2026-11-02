@@ -49,9 +49,19 @@ docker build --no-cache -t \
   --build-arg VERSION="${IMAGE_VERSION}" \
   .
 ./tests/test_image_files.sh "${CI_REGISTRY_IMAGE}/${IMAGE}:${IMAGE_VERSION}"
+# Nothing pushes unless all of these pass. wctf-restricted is private, so only
+# a host that can't push can go without the game's config.
 push=""
 if [ "$(hostname)" = "Nu" ] || [ "$(hostname)" = "naga" ]; then
   push=1
+fi
+game_config="${WCTF_RESTRICTED:-${HOME}/development/rfhs/wctf-restricted}/wifi/openwrt/airkraken/files"
+RFCTF_CONTAINER="${RFCTF}" ./tests/test_firewall.sh -i "${CI_REGISTRY_IMAGE}/${IMAGE}:${IMAGE_VERSION}" public
+RFCTF_CONTAINER="${RFCTF}" ./tests/test_firewall.sh -i "${CI_REGISTRY_IMAGE}/${IMAGE}:${IMAGE_VERSION}" restricted tests/firewall
+if [ -n "${push}" ] || [ -d "${game_config}" ]; then
+  RFCTF_CONTAINER="${RFCTF}" ./tests/test_firewall.sh -i "${CI_REGISTRY_IMAGE}/${IMAGE}:${IMAGE_VERSION}" restricted "${game_config}"
+else
+  printf "No %s, so the game's config is untested and this can't push\n" "${game_config}"
 fi
 
 ## You know what all the cool kids like?  CI!  Time to test like a boss

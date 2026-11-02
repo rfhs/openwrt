@@ -1,0 +1,29 @@
+config wifi-device 'radio0'
+	option type 'mac80211'
+	option phy 'zphy0b'
+	option band '2g'
+	option channel '1'
+
+config wifi-iface
+	option device 'radio0'
+	option mode 'ap'
+	option ssid 'RFHS_TEST_10'
+	option encryption 'none'
+	option isolate '0'
+	option network 'lan10'
+
+config wifi-iface
+	option device 'radio0'
+	option mode 'ap'
+	option ssid 'RFHS_TEST_20'
+	option encryption 'none'
+	option isolate '0'
+	option network 'lan20'
+
+config wifi-iface
+	option device 'radio0'
+	option mode 'ap'
+	option ssid 'RFHS_TEST_30'
+	option encryption 'none'
+	option isolate '0'
+	option network 'lan30'

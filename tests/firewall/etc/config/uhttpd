@@ -1,0 +1,18 @@
+config uhttpd 'main'
+	list listen_https '172.17.42.1:443'
+	option home '/www'
+	option max_requests '25'
+	option cert '/etc/uhttpd.crt'
+	option key '/etc/uhttpd.key'
+	option cgi_prefix '/cgi-bin'
+	option ubus_prefix '/ubus'
+
+config uhttpd 'lan20'
+	list listen_http '172.16.20.1:80'
+	option home '/www-lan20'
+	option max_requests '25'
+
+config cert 'px5g'
+	option days '730'
+	option bits '2048'
+	option commonname 'RF Hackers Sanctuary'
