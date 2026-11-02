@@ -79,8 +79,14 @@ note() {
   printf 'NOTE: %s\n' "${1}"
 }
 
-printf 'FROM alpine:3\nRUN apk add --no-cache bind-tools curl dnsmasq iproute2 nmap-ncat\n' \
-  | docker build -q -t "${probe_image}" - > /dev/null
+# Containers on some hosts can't get out, though the host itself can
+printf 'FROM alpine:3\nRUN apk add --no-cache bind-tools curl dnsmasq iproute2 nmap-ncat\n' > "${work}/probe"
+if ! docker build -t "${probe_image}" - < "${work}/probe" > "${work}/probe.log" 2>&1 \
+  && ! docker build --network host -t "${probe_image}" - < "${work}/probe" >> "${work}/probe.log" 2>&1; then
+  cat "${work}/probe.log" >&2
+  printf "Can't build %s; apk exiting with the number of packages means it can't reach Alpine's mirrors\n" "${probe_image}" >&2
+  exit 1
+fi
 docker network create --internal "${router}-eth0" > /dev/null
 docker network create --internal "${router}-eth1" > /dev/null
 
