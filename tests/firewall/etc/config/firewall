@@ -144,6 +144,14 @@ config rule
 	option target 'ACCEPT'
 
 config rule
+	option name 'Allow lan30 fakepop'
+	option src 'lan30'
+	option proto 'tcp'
+	option dest_port '110'
+	option dest_ip '172.16.30.1'
+	option target 'ACCEPT'
+
+config rule
 	option name 'Allow lan20 challenge'
 	option src 'lan20'
 	option proto 'tcp'

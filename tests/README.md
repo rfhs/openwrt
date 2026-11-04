@@ -1,5 +1,29 @@
 # Tests
 
+Every test takes the image to test; none of them falls back to the published
+`rfhs/openwrt`.
+
+## Before a push
+
+`docker-build.sh` runs all of these on the image it has just built, and tags it
+`latest` or pushes it only when every one passes, with both the image's own
+config and the game's:
+
+- `test_image_files.sh`
+- `test_rfhs_checker.sh -m 20`, and again with the game's
+  `/etc/config/wireless`
+- `test_firewall.sh` with the public config, the stand-in and the game's
+  overlay, each of which also needs the healthcheck's service check to pass
+- `test_healthcheck.sh` with the public config and the game's overlay:
+  every benchmarked pass has to pass and the median take at most 100 ms,
+  `rfhs_checker excessive` has to pass, and docker's own healthcheck has to
+  turn healthy
+
+The CPU the benchmark and `-m` measure is reported, not limited yet. A push
+host has to have wctf-restricted; elsewhere the game's config is skipped when
+there's no checkout, and nothing can be pushed. The whole run, its output and
+the measurements, also goes to `build-logs/`, which git ignores.
+
 ## test_rfhs_checker.sh
 
 Tests `files/usr/sbin/rfhs_checker`, the healthcheck, in a throwaway
@@ -21,6 +45,8 @@ writes under `/sys`. It checks that:
 - nothing on tcp port 110 or udp port 67 fails without restarting the wifi,
   and `AP_status` then lists the sockets; a listener on port 1100 doesn't
   count as 110
+- with pop3 bound to addresses in `/etc/xinetd.d`, each enabled one needs a
+  listener on its address, and a missing one is named
 - any number of failures exits 1 (docker reserves 2)
 - each running SSID gets a status file in `/run/rfctf_status`, with a new
   mtime
@@ -28,17 +54,16 @@ writes under `/sys`. It checks that:
   command it needs and never restarts the wifi
 
 ```sh
-docker pull rfhs/openwrt:latest
-./tests/test_rfhs_checker.sh                    # this checkout's rfhs_checker
-./tests/test_rfhs_checker.sh -c some/rfhs_checker -i rfhs/openwrt:4.6.4
-./tests/test_rfhs_checker.sh -w wireless -m 20  # another /etc/config/wireless; measure 20 passes
+./tests/test_rfhs_checker.sh -i image                       # the image's own rfhs_checker
+./tests/test_rfhs_checker.sh -i image -c some/rfhs_checker  # another one in its place
+./tests/test_rfhs_checker.sh -i image -w wireless -m 20     # another /etc/config/wireless; measure 20 passes
 ```
 
 `-m` also prints the CPU (from the container's cgroup) and wall time of a
 healthy pass, without and with `/run/rfctf_status`. The fakes are shell
 scripts, so they cost more than the real `iw` and `ss`. It prints PASS or FAIL for each check and
-exits 1 if any failed. `.github/workflows/test.yml` runs it, with `-m 20`,
-against `rfhs/openwrt:latest`.
+exits 1 if any failed. `.github/workflows/test.yml` runs this checkout's
+`rfhs_checker` in `rfhs/openwrt:latest`, with `-m 20`.
 
 ## test_image_files.sh
 
@@ -67,9 +92,9 @@ addresses and listening ports all come from the running router, so new ones
 are covered without changing the test.
 
 ```sh
-./tests/test_firewall.sh [-i image] public
-./tests/test_firewall.sh [-i image] -s tests/firewall-gateway-services restricted tests/firewall
-./tests/test_firewall.sh [-i image] -s ../wctf-restricted/wifi/openwrt/airkraken/gateway-services \
+./tests/test_firewall.sh -i image public
+./tests/test_firewall.sh -i image -s tests/firewall-gateway-services restricted tests/firewall
+./tests/test_firewall.sh -i image -s ../wctf-restricted/wifi/openwrt/airkraken/gateway-services \
   restricted ../wctf-restricted/wifi/openwrt/airkraken/files
 ```
 
@@ -102,7 +127,14 @@ The `-s` file has one `network port/proto` a line, such as `lan20 80/tcp`,
 with `#` comments. A port the gateway answers on that isn't listed fails, as
 does a listed one it doesn't answer on, or a network that isn't a wifi network.
 `tests/firewall-gateway-services` goes with the stand-in, and the game's sits
-next to its overlay, outside `files/`, so it doesn't ship in the image.
+next to its overlay, outside `files/`, so it doesn't ship in the image. The
+stand-in binds pop3 to lan30's gateway alone, so a pop3 that doesn't listen on
+every address is covered without wctf-restricted.
+
+Both also run the image's `rfhs_checker excessive` in the router and need its
+service check to pass, so a config whose services listen where the healthcheck
+doesn't look fails here rather than in the game. Its wifi check fails without
+radios and is left out.
 
 Both then change the firewall in the throwaway router and check that the
 probes see it, as a test that can't fail proves nothing. These lines start
@@ -118,11 +150,38 @@ bridge or, with `isolate`, in the AP, so the probes can't see it. The firewall
 is what's tested here, and wan is a stand-in, not the game's own uplink.
 
 `docker-build.sh` runs `public`, `restricted tests/firewall` and `restricted`
-with the game's overlay, each restricted run with its `-s` file, and pushes
-nothing unless all three pass. It pushes only from a host with wctf-restricted,
-which elsewhere it can skip. `.github/workflows/test.yml` has no
-wctf-restricted, so it runs `public` and `restricted tests/firewall` against
-the published image.
+with the game's overlay, each restricted run with its `-s` file.
+`.github/workflows/test.yml` has no wctf-restricted, so it runs `public` and
+`restricted tests/firewall` against `rfhs/openwrt:latest`.
+
+## test_healthcheck.sh
+
+Boots the image as the game does, with the game's privileges from
+rfctf-container's `startup/rfhs-helpers.sh`, its two networks, and the 10
+mac80211_hwsim radios `startup/01_openwrt.start` gives the game's openwrt, and
+needs the healthcheck to pass:
+
+- in a container started with `--no-healthcheck`, rfctf-container's
+  `tools/bench_healthcheck.sh` fails on any failing pass or a median pass over
+  100 ms, and reports the CPU; then `rfhs_checker excessive` has to pass
+- in a second container, docker runs the image's own `HEALTHCHECK`, as the
+  game does, and it has to turn healthy within the start period and the
+  checks after it its retries allow; `unhealthy`, or the container stopping,
+  fails at once
+
+```sh
+./tests/test_healthcheck.sh -i image public
+./tests/test_healthcheck.sh -i image restricted ../wctf-restricted/wifi/openwrt/airkraken/files
+```
+
+`restricted` mounts the overlay as `rfhs-container-init` mounts the game's. It
+needs sudo for `tools/give_hwsim_radios.sh`, and unloads
+mac80211_hwsim between the containers and at the end, so nothing else on the
+host may be using its radios. A container that fails is left running, with
+`AP_status` printed, for debugging. Each config takes a few minutes, mostly
+waiting for docker's first check, which comes one interval after the start.
+
+`docker-build.sh` runs it with the public config and the game's.
 
 ## test_bridge_ageing.sh
 
@@ -135,7 +194,7 @@ out a third port, and ping to a client with another client on the same MAC. It
 measures the bridge, so what an AP does with a frame it's given isn't covered.
 
 ```sh
-./tests/test_bridge_ageing.sh [-i image] [overlay]
+./tests/test_bridge_ageing.sh -i image [overlay]
 ```
 
 overlay defaults to `tests/firewall`. It reports numbers and doesn't pass or

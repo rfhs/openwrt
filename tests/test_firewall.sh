@@ -4,8 +4,8 @@
 # lease. Its tagged frames come in through the same bridge and firewall zone
 # as a wifi client's, so this needs neither radios nor root. Another container
 # on wan stands in for the internet, as openwrt's upstream DHCP and DNS.
-#   ./tests/test_firewall.sh [-i image] public
-#   ./tests/test_firewall.sh [-i image] [-s services] restricted overlay
+#   ./tests/test_firewall.sh -i image public
+#   ./tests/test_firewall.sh -i image [-s services] restricted overlay
 # public tests the image's own config: every wifi network has working DHCP and
 # DNS, reaches the admin page and reaches every other wifi network.
 # restricted mounts overlay over the image, as the game does: every wifi
@@ -22,7 +22,7 @@
 # ~/development/rfhs/rfctf-container.
 set -eu
 
-image=rfhs/openwrt:latest
+image=""
 services=/dev/null
 while getopts i:s: opt; do
   case "${opt}" in
@@ -34,9 +34,9 @@ done
 shift $((OPTIND - 1))
 mode="${1:-}"
 overlay="${2:-}"
-if { [ "${mode}" != public ] || [ "$#" -ne 1 ] || [ "${services}" != /dev/null ]; } \
-  && { [ "${mode}" != restricted ] || [ "$#" -ne 2 ]; }; then
-  printf 'usage: %s [-i image] public\n       %s [-i image] [-s services] restricted overlay\n' "${0}" "${0}" >&2
+if [ -z "${image}" ] || { { [ "${mode}" != public ] || [ "$#" -ne 1 ] || [ "${services}" != /dev/null ]; } \
+  && { [ "${mode}" != restricted ] || [ "$#" -ne 2 ]; }; }; then
+  printf 'usage: %s -i image public\n       %s -i image [-s services] restricted overlay\n' "${0}" "${0}" >&2
   exit 2
 fi
 if [ ! -r "${services}" ]; then
@@ -200,6 +200,13 @@ if docker exec "${router}" nft list table inet fw4 > "${work}/ruleset" 2> /dev/n
   pass "the firewall is loaded, with $(grep -c 'chain ' "${work}/ruleset") chains"
 else
   fail 'the firewall is not loaded, so nothing is filtered'
+fi
+# Its wifi check fails here, without radios, and excessive never restarts the wifi
+docker exec "${router}" /usr/sbin/rfhs_checker excessive > "${work}/checker" 2>&1 || true
+if grep -qx 'Service Check Pass' "${work}/checker"; then
+  pass "the healthcheck finds every service it checks for listening"
+else
+  fail "the healthcheck's service check fails: $(grep -e '^Nothing is listening' -e '^Missing required' "${work}/checker" | tr '\n' ' ')"
 fi
 while read -r kind network zone address mask device vlan; do
   if [ "${kind}" != wifi ]; then

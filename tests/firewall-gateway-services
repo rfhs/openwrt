@@ -1,2 +1,3 @@
 # What each wifi network's gateway answers on besides DHCP, DNS and ping
 lan20 80/tcp
+lan30 110/tcp

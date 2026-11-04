@@ -5,12 +5,12 @@
 # bridge, standing in for its APs, with a client on each. It needs neither
 # radios nor root, and prints the same measurements with the bridge learning,
 # with ageing_time 0 and learning again.
-#   ./tests/test_bridge_ageing.sh [-i image] [overlay]
+#   ./tests/test_bridge_ageing.sh -i image [overlay]
 # overlay defaults to tests/firewall. RFCTF_CONTAINER is an rfctf-container
 # checkout, by default ~/development/rfhs/rfctf-container.
 set -eu
 
-image=rfhs/openwrt:latest
+image=""
 while getopts i: opt; do
   case "${opt}" in
     i) image="${OPTARG}";;
@@ -18,6 +18,10 @@ while getopts i: opt; do
   esac
 done
 shift $((OPTIND - 1))
+if [ -z "${image}" ] || [ "$#" -gt 1 ]; then
+  printf 'usage: %s -i image [overlay]\n' "${0}" >&2
+  exit 2
+fi
 here="$(cd "$(dirname "${0}")" && pwd)"
 overlay="${1:-${here}/firewall}"
 if [ ! -d "${overlay}" ]; then

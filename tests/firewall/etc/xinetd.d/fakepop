@@ -1,0 +1,11 @@
+service pop3
+{
+	bind        = 172.16.30.1
+	socket_type = stream
+	protocol    = tcp
+	wait        = no
+	user        = nobody
+	server      = /usr/bin/fakepop
+	port        = 110
+	disable     = no
+}

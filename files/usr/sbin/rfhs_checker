@@ -193,13 +193,22 @@ do_check() {
 
 check_services() {
   service_check=0
-  # Checking for pop3, and dhcp, but NOT dns or https because those bind to ip not all
+  # Checking for pop3, on each address xinetd binds it to, and dhcp, but NOT
+  # dns or https because those bind to each network's ip
+  pop3="$(awk '
+    $1 == "service" { name = $2; port = ""; bind = "0.0.0.0"; disable = "" }
+    $2 == "=" && $1 == "port" { port = $3 }
+    $2 == "=" && ($1 == "bind" || $1 == "interface") { bind = $3 }
+    $2 == "=" && $1 == "disable" { disable = $3 }
+    $1 == "}" && disable != "yes" && (port == "110" || (port == "" && name == "pop3")) {
+      printf "tcp/%s:110 ", bind
+    }' /etc/xinetd.d/* 2> /dev/null || true)"
   listening=" $(ss -Hnltu | awk '{ printf "%s/%s ", $1, $5 }')"
-  for socket in tcp/0.0.0.0:110 udp/0.0.0.0:67; do
+  for socket in ${pop3:-tcp/0.0.0.0:110} udp/0.0.0.0:67; do
     case "${listening}" in
       *" ${socket} "*) ;;
       *)
-        say 'Nothing is listening on %s port %s\n' "${socket%%/*}" "${socket##*:}"
+        say 'Nothing is listening on %s %s\n' "${socket%%/*}" "${socket#*/}"
         service_check=1
         ;;
     esac

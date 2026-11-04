@@ -2,14 +2,14 @@
 # Tests rfhs_checker in a throwaway container of the openwrt image, with fakes
 # first in PATH for iwinfo, ss, iw and wifi, and a tmpfs over /sys/class whose
 # ieee80211 holds the configured phys.
-#   ./tests/test_rfhs_checker.sh [-c checker] [-i image] [-w wireless] [-m runs]
-# -c defaults to this checkout's files/usr/sbin/rfhs_checker and -i to
-# rfhs/openwrt:latest; -w replaces /etc/config/wireless; -m also measures the
-# CPU and wall time of that many healthy passes.
+#   ./tests/test_rfhs_checker.sh -i image [-c checker] [-w wireless] [-m runs]
+# It tests the image's own rfhs_checker, or -c's in its place; -w replaces
+# /etc/config/wireless; -m also measures the CPU and wall time of that many
+# healthy passes.
 set -eu
 
 missing_tools=""
-for tool in dirname docker grep sed sort; do
+for tool in docker grep sed sort; do
   command -v "${tool}" > /dev/null 2>&1 || missing_tools="${missing_tools} ${tool}"
 done
 if [ -n "${missing_tools}" ]; then
@@ -17,8 +17,8 @@ if [ -n "${missing_tools}" ]; then
   exit 1
 fi
 
-checker="$(dirname "${0}")/../files/usr/sbin/rfhs_checker"
-image=rfhs/openwrt:latest
+checker=""
+image=""
 wireless=""
 runs=""
 while getopts c:i:w:m: opt; do
@@ -30,6 +30,10 @@ while getopts c:i:w:m: opt; do
     *) exit 2;;
   esac
 done
+if [ -z "${image}" ]; then
+  printf 'usage: %s -i image [-c checker] [-w wireless] [-m runs]\n' "${0}" >&2
+  exit 2
+fi
 
 c="rfhs-checker-test-$$"
 # The tmpfs goes over /sys/class: /sys/class/ieee80211 only exists on a host
@@ -39,12 +43,15 @@ docker run -d --rm --name "${c}" --tmpfs /run:mode=0755,nosuid,nodev \
   --tmpfs /sys/class --security-opt apparmor=unconfined \
   --entrypoint /bin/sleep "${image}" 3600 > /dev/null
 trap 'docker rm -f "${c}" > /dev/null 2>&1 || true' EXIT
-docker cp -q "${checker}" "${c}:/usr/sbin/rfhs_checker"
+if [ -n "${checker}" ]; then
+  docker cp -q "${checker}" "${c}:/usr/sbin/rfhs_checker"
+fi
 if [ -n "${wireless}" ]; then
   docker cp -q "${wireless}" "${c}:/etc/config/wireless"
 fi
 docker exec "${c}" sh -c 'mkdir /tmp/rfhs-test && chmod 755 /usr/sbin/rfhs_checker
   cp /etc/config/wireless /tmp/rfhs-test/wireless.orig
+  cp /etc/xinetd.d/fakepop /tmp/rfhs-test/fakepop.orig
   touch -d "2000-01-01 00:00:00" /.dockerenv'
 
 # One fake SSID per line of ssids, then an interface with none
@@ -61,6 +68,47 @@ while read -r ssid; do
   n=$((n + 1))
 done < /tmp/rfhs-test/ssids
 printf 'wlan%s     ESSID: unknown\n          Access Point: 00:00:00:00:00:00\n\n' "${n}"
+EOF
+# pop3 bound to two addresses, and to a third disabled
+docker exec -i "${c}" sh -c 'cat > /tmp/rfhs-test/fakepop.bound' << 'EOF'
+service pop3
+{
+	id          = pop3-1
+	bind        = 10.0.1.1
+	socket_type = stream
+	protocol    = tcp
+	wait        = no
+	user        = nobody
+	server      = /usr/bin/fakepop
+	port        = 110
+	disable     = no
+}
+
+service pop3
+{
+	id          = pop3-2
+	bind        = 10.0.2.1
+	socket_type = stream
+	protocol    = tcp
+	wait        = no
+	user        = nobody
+	server      = /usr/bin/fakepop
+	port        = 110
+	disable     = no
+}
+
+service pop3
+{
+	id          = pop3-3
+	bind        = 10.0.3.1
+	socket_type = stream
+	protocol    = tcp
+	wait        = no
+	user        = nobody
+	server      = /usr/bin/fakepop
+	port        = 110
+	disable     = yes
+}
 EOF
 # The sockets in sockets, laid out as ss lays them out for the protocols asked for
 docker exec -i "${c}" sh -c 'cat > /tmp/rfhs-test/ss' << 'EOF'
@@ -123,6 +171,7 @@ docker exec -i "${c}" sh -c 'cat > /tmp/rfhs-test/reset' << 'EOF'
 t=/tmp/rfhs-test
 if [ -e /usr/bin/seq.hidden ]; then mv /usr/bin/seq.hidden /usr/bin/seq; fi
 cp "${t}/wireless.orig" /etc/config/wireless
+cp "${t}/fakepop.orig" /etc/xinetd.d/fakepop
 awk '!/^#/ && / ssid / { gsub("\047", ""); print $3 }' /etc/config/wireless > "${t}/ssids"
 echo OpenWrt >> "${t}/ssids"
 printf '%s\n' 'tcp LISTEN 0 5 0.0.0.0:110 0.0.0.0:*' 'tcp LISTEN 0 5 0.0.0.0:22 0.0.0.0:*' \
@@ -204,6 +253,7 @@ fail() {
 }
 drop_ssid="awk -v s='${ssid}' '\$0 == s && !done { done = 1; next } 1' \"\${t}/ssids\" > \"\${t}/ssids.new\" && mv \"\${t}/ssids.new\" \"\${t}/ssids\""
 drop_110="sed -i '/ 0\\.0\\.0\\.0:110 /d' \"\${t}/sockets\""
+bind_110="cp \"\${t}/fakepop.bound\" /etc/xinetd.d/fakepop && sed -i 's/ 0\\.0\\.0\\.0:110 / 10.0.1.1:110 /' \"\${t}/sockets\""
 
 run_case '' ''
 name='a healthy pass succeeds and leaves the wifi alone'
@@ -266,7 +316,7 @@ fi
 
 run_case '' "${drop_110}"
 name='nothing on tcp port 110 fails and the report lists the sockets, without restarting the wifi'
-if has 'exit 1' && has 'status Nothing is listening on tcp port 110' && has 'status Service Check Failed' \
+if has 'exit 1' && has 'status Nothing is listening on tcp 0.0.0.0:110' && has 'status Service Check Failed' \
   && has_re '^status udp .* 0\.0\.0\.0:67 ' && has_re '^status tcp .* 0\.0\.0\.0:22 ' \
   && has 'status Check Pass' && ! has_re '^wifi '; then
   pass
@@ -276,7 +326,7 @@ fi
 
 run_case '' "sed -i '/ 0\\.0\\.0\\.0:67 /d' \"\${t}/sockets\""
 name='nothing on udp port 67 fails and the report lists the sockets'
-if has 'exit 1' && has 'status Nothing is listening on udp port 67' \
+if has 'exit 1' && has 'status Nothing is listening on udp 0.0.0.0:67' \
   && has_re '^status tcp .* 0\.0\.0\.0:110 '; then
   pass
 else
@@ -285,7 +335,24 @@ fi
 
 run_case '' "sed -i 's/ 0\\.0\\.0\\.0:110 / 0.0.0.0:1100 /' \"\${t}/sockets\""
 name='a listener on port 1100 does not count as port 110'
-if has 'exit 1' && has 'status Nothing is listening on tcp port 110'; then
+if has 'exit 1' && has 'status Nothing is listening on tcp 0.0.0.0:110'; then
+  pass
+else
+  fail
+fi
+
+run_case '' "${bind_110}; echo 'tcp LISTEN 0 64 10.0.2.1:110 0.0.0.0:*' >> \"\${t}/sockets\""
+name='pop3 bound to addresses passes with a listener on each, and a disabled one needs none'
+if has 'exit 0' && has 'status Service Check Pass'; then
+  pass
+else
+  fail
+fi
+
+run_case '' "${bind_110}"
+name='pop3 bound to addresses fails and names the one without a listener'
+if has 'exit 1' && has 'status Nothing is listening on tcp 10.0.2.1:110' \
+  && [ "$(printf '%s\n' "${out}" | grep -c '^status Nothing is listening')" -eq 1 ]; then
   pass
 else
   fail

@@ -64,7 +64,7 @@ jobs:
       - name: Test rfhs_checker in the published image
         run: |
           docker pull rfhs/openwrt:latest
-          ./tests/test_rfhs_checker.sh -m 20
+          ./tests/test_rfhs_checker.sh -i rfhs/openwrt:latest -c files/usr/sbin/rfhs_checker -m 20
 
   firewall:
     runs-on: ubuntu-24.04
@@ -85,5 +85,5 @@ jobs:
           RFCTF_CONTAINER: ${{ github.workspace }}/rfctf-container
         run: |
           docker pull rfhs/openwrt:latest
-          ./tests/test_firewall.sh public
-          ./tests/test_firewall.sh -s tests/firewall-gateway-services restricted tests/firewall
+          ./tests/test_firewall.sh -i rfhs/openwrt:latest public
+          ./tests/test_firewall.sh -i rfhs/openwrt:latest -s tests/firewall-gateway-services restricted tests/firewall
