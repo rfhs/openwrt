@@ -1,8 +1,8 @@
 #!/bin/sh
 # Boots the image as the game does, with mac80211_hwsim radios, and needs its
-# healthcheck to pass. A first container runs rfctf-container's
-# tools/bench_healthcheck.sh, which fails on a failing pass or a median pass
-# over 100 ms and reports the CPU, and rfhs_checker excessive. A second runs
+# healthcheck to pass. In a first container rfhs_checker excessive has to
+# pass, then rfctf-container's tools/bench_healthcheck.sh fails on a failing
+# pass or a median pass over 100 ms and reports the CPU. A second runs
 # docker's own HEALTHCHECK, as the game does, and has to turn healthy.
 #   ./tests/test_healthcheck.sh -i image public
 #   ./tests/test_healthcheck.sh -i image restricted overlay
@@ -30,7 +30,7 @@ if [ -z "${image}" ] || { { [ "${mode}" != public ] || [ "$#" -ne 1 ]; } \
   exit 2
 fi
 missing_tools=""
-for tool in awk docker sleep sudo; do
+for tool in awk date docker sleep sudo; do
   command -v "${tool}" > /dev/null 2>&1 || missing_tools="${missing_tools} ${tool}"
 done
 if [ -n "${missing_tools}" ]; then
@@ -106,17 +106,30 @@ left() {
   exit 1
 }
 
+read -r interval start_period retries << EOF
+${timing}
+EOF
+# Every check of the start period can fail, then retries more
+limit=$((start_period + (retries + 1) * interval + 30))
+
 # docker's own runs of the healthcheck would land in the benchmark's windows
 c="${name}-bench"
 boot "${c}" --no-healthcheck
-printf 'Sleeping for 30 seconds so openwrt can boot\n'
-sleep 30
+# A failing pass restarts the wifi, and the benchmark checks every few seconds
+# until a pass succeeds, so a config that takes longer than that to come up
+# would never settle. excessive leaves the wifi alone.
+printf 'Waiting up to %ss for rfhs_checker excessive to pass\n' "${limit}"
+start="$(date +%s)"
+until docker exec "${c}" /usr/sbin/rfhs_checker excessive > /dev/null 2>&1; do
+  if [ $(($(date +%s) - start)) -ge "${limit}" ]; then
+    printf 'FAIL: rfhs_checker excessive still fails after %ss; its AP_status:\n' "$(($(date +%s) - start))"
+    docker exec "${c}" cat /root/shared_persistent_storage/AP_status || true
+    left "${c}"
+  fi
+  sleep 5
+done
+printf 'PASS: rfhs_checker excessive passes after %ss\n' "$(($(date +%s) - start))"
 if ! "${bench}" -t 100 "${c}"; then
-  left "${c}"
-fi
-if docker exec "${c}" /usr/sbin/rfhs_checker excessive; then
-  printf 'PASS: rfhs_checker excessive\n'
-else
   left "${c}"
 fi
 docker stop "${c}" > /dev/null
@@ -125,11 +138,6 @@ sudo modprobe -r mac80211_hwsim
 
 c="${name}-docker"
 boot "${c}"
-read -r interval start_period retries << EOF
-${timing}
-EOF
-# Every check of the start period can fail, then retries more
-limit=$((start_period + (retries + 1) * interval + 30))
 printf "Waiting up to %ss for docker's healthcheck, every %ss\n" "${limit}" "${interval}"
 waited=0
 while true; do

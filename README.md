@@ -18,7 +18,7 @@ Tests:
 - `tests/test_image_files.sh` checks that the image has this checkout's `files/`.
 - `tests/test_rfhs_checker.sh` tests the healthcheck, `files/usr/sbin/rfhs_checker`, without radios, with each config's wireless.
 - `tests/test_firewall.sh` checks what the wifi networks can reach, and that the healthcheck finds its services listening, with the public config, a public stand-in for the game's and the game's.
-- `tests/test_healthcheck.sh` boots the image with mac80211_hwsim radios, as the game does, and benchmarks the healthcheck: every pass has to pass and the median take at most 100 ms.  Then `rfhs_checker excessive` has to pass and docker's own healthcheck turn healthy.
+- `tests/test_healthcheck.sh` boots the image with mac80211_hwsim radios, as the game does.  `rfhs_checker excessive` has to pass, then every benchmarked pass of the healthcheck has to pass and the median take at most 100 ms, and docker's own healthcheck has to turn healthy.
 
 It pushes only from Nu or naga, which have the credentials, and only when all of them pass, so a host that pushes must have a wctf-restricted checkout, in `~/development/rfhs/wctf-restricted` or at `WCTF_RESTRICTED`.  Elsewhere it skips the game's config when there's no checkout, and then can't push.  The benchmarks' CPU numbers are reported, not limited yet; each run's output goes to `build-logs/` so they can be compared across builds.
 

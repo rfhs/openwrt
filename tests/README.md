@@ -15,8 +15,8 @@ config and the game's:
 - `test_firewall.sh` with the public config, the stand-in and the game's
   overlay, each of which also needs the healthcheck's service check to pass
 - `test_healthcheck.sh` with the public config and the game's overlay:
-  every benchmarked pass has to pass and the median take at most 100 ms,
-  `rfhs_checker excessive` has to pass, and docker's own healthcheck has to
+  `rfhs_checker excessive` has to pass, every benchmarked pass has to pass
+  and the median take at most 100 ms, and docker's own healthcheck has to
   turn healthy
 
 The CPU the benchmark and `-m` measure is reported, not limited yet. A push
@@ -161,9 +161,13 @@ rfctf-container's `startup/rfhs-helpers.sh`, its two networks, and the 10
 mac80211_hwsim radios `startup/01_openwrt.start` gives the game's openwrt, and
 needs the healthcheck to pass:
 
-- in a container started with `--no-healthcheck`, rfctf-container's
-  `tools/bench_healthcheck.sh` fails on any failing pass or a median pass over
-  100 ms, and reports the CPU; then `rfhs_checker excessive` has to pass
+- in a container started with `--no-healthcheck`, `rfhs_checker excessive`
+  has to pass in the time docker's healthcheck gets below; then
+  rfctf-container's `tools/bench_healthcheck.sh` fails on any failing pass or
+  a median pass over 100 ms, and reports the CPU. `excessive` comes first as
+  it leaves the wifi alone: a failing pass restarts the wifi, and the
+  benchmark's wait for a pass checks every few seconds, so a config that
+  takes longer than that to come up would never settle
 - in a second container, docker runs the image's own `HEALTHCHECK`, as the
   game does, and it has to turn healthy within the start period and the
   checks after it its retries allow; `unhealthy`, or the container stopping,
