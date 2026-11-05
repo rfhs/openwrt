@@ -16,7 +16,7 @@ boot() {
       # This will loop FOREVER until all the APs are up
       # Meaning that core networking never comes up if it fails
       wifi up
-      sleep 15
+      sleep 30
     done
   fi
   set_state 'done'
