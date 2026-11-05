@@ -158,8 +158,9 @@ with the game's overlay, each restricted run with its `-s` file.
 
 Boots the image as the game does, with the game's privileges from
 rfctf-container's `startup/rfhs-helpers.sh`, its two networks, and the 10
-mac80211_hwsim radios `startup/01_openwrt.start` gives the game's openwrt, and
-needs the healthcheck to pass:
+mac80211_hwsim radios `startup/01_openwrt.start` gives the game's openwrt,
+from the module loaded as `startup/00_radio_init.start` loads it
+(`radios=60 channels=35`), and needs the healthcheck to pass:
 
 - in a container started with `--no-healthcheck`, `rfhs_checker excessive`
   has to pass in the time docker's healthcheck gets below; then
@@ -179,9 +180,10 @@ needs the healthcheck to pass:
 ```
 
 `restricted` mounts the overlay as `rfhs-container-init` mounts the game's. It
-needs sudo for `tools/give_hwsim_radios.sh`, and unloads
-mac80211_hwsim between the containers and at the end, so nothing else on the
-host may be using its radios. A container that fails is left running, with
+needs sudo to load mac80211_hwsim and for `tools/give_hwsim_radios.sh`, and
+unloads mac80211_hwsim between the containers and at the end, so nothing else
+on the host may be using its radios; it refuses a module already loaded with
+other channels. A container that fails is left running, with
 `AP_status` printed, for debugging. Each config takes a few minutes, mostly
 waiting for docker's first check, which comes one interval after the start.
 
