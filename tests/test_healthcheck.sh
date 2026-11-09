@@ -8,9 +8,9 @@
 #   ./tests/test_healthcheck.sh -i image restricted overlay
 # public boots the image's own config; restricted mounts overlay over it, as
 # rfhs-container-init mounts the game's. It needs sudo for the radios, loads
-# mac80211_hwsim as the game does, and takes back every radio when it
-# finishes, so nothing else may be using them. A container that fails is
-# left running for debugging.
+# mac80211_hwsim afresh for each container as the game loads it, and unloads
+# it when it finishes, so no container may hold its radios. A container that
+# fails is left running for debugging.
 # RFCTF_CONTAINER is an rfctf-container checkout, by default
 # ~/development/rfhs/rfctf-container.
 set -eu
@@ -60,11 +60,21 @@ radios=10
 # as rfctf-container's startup/00_radio_init.start loads it for the game
 hwsim_channels=35
 hwsim_radios=60
-if [ -r /sys/module/mac80211_hwsim/parameters/channels ] \
-  && [ "$(cat /sys/module/mac80211_hwsim/parameters/channels)" != "${hwsim_channels}" ]; then
-  printf 'mac80211_hwsim is loaded with channels=%s, not the game'"'"'s %s: unload it first\n' \
-    "$(cat /sys/module/mac80211_hwsim/parameters/channels)" "${hwsim_channels}" >&2
-  exit 1
+# Each container gets mac80211_hwsim afresh, as a radio back from an earlier
+# container keeps the name it had there, which the next openwrt can't take
+if lsmod | grep -q '^mac80211_hwsim '; then
+  free=0
+  for phy in /sys/class/ieee80211/*; do
+    if [ -e "${phy}/device/uevent" ] && grep -q '^DRIVER=mac80211_hwsim$' "${phy}/device/uevent"; then
+      free=$((free + 1))
+    fi
+  done
+  loaded="$(cat /sys/module/mac80211_hwsim/parameters/radios)"
+  if [ "${free}" -lt "${loaded}" ]; then
+    printf '%s of the %s mac80211_hwsim radios are in containers, such as one a failed run left running: stop them first\n' \
+      "$((loaded - free))" "${loaded}" >&2
+    exit 1
+  fi
 fi
 # Each "Interval StartPeriod Retries", in seconds
 # shellcheck disable=SC2016
@@ -108,10 +118,11 @@ boot() {
       $(openwrt_docker_args) "${image}" > /dev/null
   )
   openwrt_start "${container}" "${name}-eth1" > /dev/null
-  if ! lsmod | grep -q '^mac80211_hwsim '; then
-    sudo modprobe mac80211_hwsim radios="${hwsim_radios}" channels="${hwsim_channels}"
-    sleep 2
+  if lsmod | grep -q '^mac80211_hwsim '; then
+    sudo modprobe -r mac80211_hwsim
   fi
+  sudo modprobe mac80211_hwsim radios="${hwsim_radios}" channels="${hwsim_channels}"
+  sleep 2
   sudo "${rfctf}/tools/give_hwsim_radios.sh" "${container}" "${radios}"
 }
 # left container: leaves it running and fails
@@ -147,8 +158,6 @@ if ! "${bench}" -t 100 "${c}"; then
   left "${c}"
 fi
 docker stop "${c}" > /dev/null
-# Fresh radios for the next container, with the names they start with
-sudo modprobe -r mac80211_hwsim
 
 c="${name}-docker"
 boot "${c}"
