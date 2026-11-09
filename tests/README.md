@@ -70,8 +70,8 @@ exits 1 if any failed. `.github/workflows/test.yml` runs this checkout's
 Checks that an image has this checkout's `files/`: each file's contents and
 mode and each symlink, without starting the image. `docker-build.sh` runs it
 on every image it builds, as `files/` is what makes the image newer than its
-OpenWrt tarball. An image built from an older checkout fails it, so it isn't
-in CI, which tests the published image.
+OpenWrt tarball. An image built from an older checkout fails it, so CI, which
+has no tarball to build from, doesn't run it.
 
 ```sh
 ./tests/test_image_files.sh rfhs/openwrt:4.6.4.1
@@ -151,8 +151,9 @@ is what's tested here, and wan is a stand-in, not the game's own uplink.
 
 `docker-build.sh` runs `public`, `restricted tests/firewall` and `restricted`
 with the game's overlay, each restricted run with its `-s` file.
-`.github/workflows/test.yml` has no wctf-restricted, so it runs `public` and
-`restricted tests/firewall` against `rfhs/openwrt:latest`.
+`.github/workflows/test.yml` has no wctf-restricted or rootfs tarball, so it
+runs `public` and `restricted tests/firewall` against this checkout's `files/`
+copied over `rfhs/openwrt:latest`.
 
 ## test_healthcheck.sh
 

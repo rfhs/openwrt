@@ -22,4 +22,4 @@ Tests:
 
 It pushes only from Nu or naga, which have the credentials, and only when all of them pass, so a host that pushes must have a wctf-restricted checkout, in `~/development/rfhs/wctf-restricted` or at `WCTF_RESTRICTED`.  Elsewhere it skips the game's config when there's no checkout, and then can't push.  The benchmarks' CPU numbers are reported, not limited yet; each run's output goes to `build-logs/` so they can be compared across builds.
 
-GitHub Actions (`.github/workflows/test.yml`) runs ShellCheck, and runs `test_rfhs_checker.sh` and `test_firewall.sh` with the public config and the stand-in on `rfhs/openwrt:latest`, with this checkout's `rfhs_checker` in the first.  It has no wctf-restricted and builds no image, so it doesn't stand in for docker-build.sh's tests.
+GitHub Actions (`.github/workflows/test.yml`) runs ShellCheck, `test_rfhs_checker.sh` on `rfhs/openwrt:latest` with this checkout's `rfhs_checker`, and `test_firewall.sh` with the public config and the stand-in on this checkout's `files/` copied over `rfhs/openwrt:latest`.  It has no wctf-restricted or rootfs tarball, so it doesn't stand in for docker-build.sh's tests.

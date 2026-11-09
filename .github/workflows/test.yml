@@ -80,10 +80,16 @@ jobs:
           path: rfctf-container
           persist-credentials: false
 
-      - name: Test the published image's config and a stand-in for the game's
+      # The rootfs tarball isn't public, so this checkout's files/ go over the
+      # published image's, as the Dockerfile's last layer puts them
+      - name: Build this checkout's files over the published image
+        run: |
+          docker pull rfhs/openwrt:latest
+          printf 'FROM rfhs/openwrt:latest\nCOPY files/ /\n' | docker build -t openwrt-checkout -f - .
+
+      - name: Test its config and a stand-in for the game's
         env:
           RFCTF_CONTAINER: ${{ github.workspace }}/rfctf-container
         run: |
-          docker pull rfhs/openwrt:latest
-          ./tests/test_firewall.sh -i rfhs/openwrt:latest public
-          ./tests/test_firewall.sh -i rfhs/openwrt:latest -s tests/firewall-gateway-services restricted tests/firewall
+          ./tests/test_firewall.sh -i openwrt-checkout public
+          ./tests/test_firewall.sh -i openwrt-checkout -s tests/firewall-gateway-services restricted tests/firewall
